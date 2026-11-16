@@ -92,7 +92,7 @@ alter table public.products add column if not exists shop_id uuid references pub
 alter table public.sales add column if not exists shop_id uuid references public.shops(id) on delete cascade;
 alter table public.sale_items add column if not exists shop_id uuid references public.shops(id) on delete cascade;
 alter table public.customers add column if not exists shop_id uuid references public.shops(id) on delete cascade;
-alter table public.point_transactions add column if not exists shop_id uuid references public.shops(id) on delete cascade;
+alter table if exists public.point_transactions add column if not exists shop_id uuid references public.shops(id) on delete cascade;
 
 -- Remove global uniqueness from starter schema; SKUs/category names are shop-scoped.
 alter table public.categories drop constraint if exists categories_name_key;
@@ -100,10 +100,13 @@ alter table public.products drop constraint if exists products_sku_key;
 create unique index if not exists idx_categories_shop_name on public.categories(shop_id, lower(name)) where shop_id is not null;
 create unique index if not exists idx_products_shop_sku on public.products(shop_id, sku) where shop_id is not null;
 
+-- Composite parent key must exist before the tenant-safe variant foreign key is declared.
+create unique index if not exists idx_products_id_shop on public.products(id, shop_id);
+
 create table if not exists public.product_variants (
   id uuid primary key default gen_random_uuid(),
   shop_id uuid not null references public.shops(id) on delete cascade,
-  product_id uuid not null references public.products(id) on delete cascade,
+  product_id uuid not null,
   sku text not null,
   barcode text,
   size text not null,
@@ -119,9 +122,6 @@ create table if not exists public.product_variants (
   constraint product_variants_product_shop_fk foreign key (product_id, shop_id)
     references public.products(id, shop_id) on delete cascade
 );
-
--- Composite parent key required by the tenant-safe variant foreign key.
-create unique index if not exists idx_products_id_shop on public.products(id, shop_id);
 
 create unique index if not exists idx_product_variants_barcode on public.product_variants(shop_id, barcode)
   where barcode is not null;
@@ -196,13 +196,13 @@ create index if not exists idx_purchase_orders_shop_date on public.purchase_orde
 create index if not exists idx_purchase_items_order on public.purchase_order_items(shop_id, purchase_order_id);
 
 -- GST fields are stored as invoice snapshots; rates must be configured/validated by each shop.
-alter table public.sales add column if not exists invoice_number text;
-alter table public.sales add column if not exists place_of_supply_state text;
-alter table public.sales add column if not exists taxable_amount numeric(12,2) not null default 0;
-alter table public.sales add column if not exists cgst_amount numeric(12,2) not null default 0;
-alter table public.sales add column if not exists sgst_amount numeric(12,2) not null default 0;
-alter table public.sales add column if not exists igst_amount numeric(12,2) not null default 0;
-alter table public.sales add column if not exists gstin_snapshot text;
+alter table if exists public.sales add column if not exists invoice_number text;
+alter table if exists public.sales add column if not exists place_of_supply_state text;
+alter table if exists public.sales add column if not exists taxable_amount numeric(12,2) not null default 0;
+alter table if exists public.sales add column if not exists cgst_amount numeric(12,2) not null default 0;
+alter table if exists public.sales add column if not exists sgst_amount numeric(12,2) not null default 0;
+alter table if exists public.sales add column if not exists igst_amount numeric(12,2) not null default 0;
+alter table if exists public.sales add column if not exists gstin_snapshot text;
 create unique index if not exists idx_sales_shop_invoice on public.sales(shop_id, invoice_number) where invoice_number is not null;
 
 -- Enable RLS and remove all legacy permissive policies on tenant-owned tables.
