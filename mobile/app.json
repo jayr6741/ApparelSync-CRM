@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "GARMENTOS",
+    "slug": "garmentos",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "garmentos",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.garmentos.app"
+    },
+    "android": {
+      "package": "com.garmentos.app",
+      "permissions": []
+    }
+  }
+}
