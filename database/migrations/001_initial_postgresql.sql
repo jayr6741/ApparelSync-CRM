@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS products (
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE(shop_id, id),
   UNIQUE(shop_id, sku),
-  FOREIGN KEY (shop_id, category_id) REFERENCES categories(shop_id, id) ON DELETE SET NULL
+  FOREIGN KEY (shop_id, category_id) REFERENCES categories(shop_id, id) ON DELETE SET NULL (category_id)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS products_shop_barcode_uq ON products(shop_id, barcode) WHERE barcode IS NOT NULL;
 CREATE INDEX IF NOT EXISTS products_shop_name_idx ON products(shop_id, name);
@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS sales (
   discount_amount numeric(12,2) NOT NULL DEFAULT 0 CHECK (discount_amount >= 0),
   card_last4 char(4),
   created_at timestamptz NOT NULL DEFAULT now(),
-  FOREIGN KEY (shop_id, customer_id) REFERENCES customers(shop_id, id) ON DELETE SET NULL,
+  FOREIGN KEY (shop_id, customer_id) REFERENCES customers(shop_id, id) ON DELETE SET NULL (customer_id),
   UNIQUE(shop_id, id)
 );
 CREATE INDEX IF NOT EXISTS sales_shop_date_idx ON sales(shop_id, sale_date DESC);
@@ -143,8 +143,8 @@ CREATE TABLE IF NOT EXISTS sale_items (
   unit_price numeric(12,2) NOT NULL CHECK (unit_price >= 0),
   total_price numeric(12,2) NOT NULL CHECK (total_price >= 0),
   FOREIGN KEY (shop_id, sale_id) REFERENCES sales(shop_id, id) ON DELETE CASCADE,
-  FOREIGN KEY (shop_id, product_id) REFERENCES products(shop_id, id) ON DELETE SET NULL,
-  FOREIGN KEY (shop_id, variant_id) REFERENCES product_variants(shop_id, id) ON DELETE SET NULL
+  FOREIGN KEY (shop_id, product_id) REFERENCES products(shop_id, id) ON DELETE SET NULL (product_id),
+  FOREIGN KEY (shop_id, variant_id) REFERENCES product_variants(shop_id, id) ON DELETE SET NULL (variant_id)
 );
 CREATE INDEX IF NOT EXISTS sale_items_shop_sale_idx ON sale_items(shop_id, sale_id);
 
@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS point_transactions (
   description text,
   created_at timestamptz NOT NULL DEFAULT now(),
   FOREIGN KEY (shop_id, customer_id) REFERENCES customers(shop_id, id) ON DELETE CASCADE,
-  FOREIGN KEY (shop_id, order_id) REFERENCES sales(shop_id, id) ON DELETE SET NULL
+  FOREIGN KEY (shop_id, order_id) REFERENCES sales(shop_id, id) ON DELETE SET NULL (order_id)
 );
 CREATE INDEX IF NOT EXISTS point_transactions_shop_customer_idx ON point_transactions(shop_id, customer_id, created_at DESC);
 
