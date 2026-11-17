@@ -63,3 +63,37 @@ stockRouter.post("/stock/transfers",async(req,res,next)=>{
   return next(e);
  }finally{client.release();}
 });
+
+
+const reorderLevelSchema=z.object({
+ warehouseId:z.string().uuid(),
+ variantId:z.string().uuid(),
+ reorderLevel:z.number().int().min(0).max(10000000),
+ targetStock:z.number().int().min(0).max(10000000)
+}).refine(p=>p.targetStock>=p.reorderLevel,{message:"Target stock must be at least the reorder level",path:["targetStock"]});
+
+stockRouter.get("/stock/reorder-alerts",async(req,res,next)=>{try{
+ const r=await pool.query(`SELECT rl.id,rl.warehouse_id,w.name AS warehouse_name,rl.variant_id,v.sku,v.barcode,v.size,v.colour,p.name AS product_name,rl.reorder_level,rl.target_stock,COALESCE(sb.on_hand,0)::int AS on_hand,COALESCE(sb.reserved,0)::int AS reserved,COALESCE(sb.damaged,0)::int AS damaged,(COALESCE(sb.on_hand,0)-COALESCE(sb.reserved,0)-COALESCE(sb.damaged,0))::int AS available,GREATEST(rl.target_stock-(COALESCE(sb.on_hand,0)-COALESCE(sb.reserved,0)-COALESCE(sb.damaged,0)),0)::int AS suggested_replenishment FROM stock_reorder_levels rl JOIN warehouses w ON w.id=rl.warehouse_id AND w.shop_id=rl.shop_id JOIN product_variants v ON v.id=rl.variant_id AND v.shop_id=rl.shop_id JOIN products p ON p.id=v.product_id AND p.shop_id=v.shop_id LEFT JOIN stock_balances sb ON sb.shop_id=rl.shop_id AND sb.warehouse_id=rl.warehouse_id AND sb.variant_id=rl.variant_id WHERE rl.shop_id=$1 AND (COALESCE(sb.on_hand,0)-COALESCE(sb.reserved,0)-COALESCE(sb.damaged,0))<=rl.reorder_level ORDER BY (COALESCE(sb.on_hand,0)-COALESCE(sb.reserved,0)-COALESCE(sb.damaged,0)) ASC,p.name LIMIT 500`,[req.auth!.shopId]);
+ return res.json({data:r.rows});
+}catch(e){return next(e);}});
+
+stockRouter.get("/stock/reorder-levels",async(req,res,next)=>{try{
+ const r=await pool.query(`SELECT rl.id,rl.warehouse_id,w.name AS warehouse_name,rl.variant_id,v.sku,v.size,v.colour,p.name AS product_name,rl.reorder_level,rl.target_stock FROM stock_reorder_levels rl JOIN warehouses w ON w.id=rl.warehouse_id AND w.shop_id=rl.shop_id JOIN product_variants v ON v.id=rl.variant_id AND v.shop_id=rl.shop_id JOIN products p ON p.id=v.product_id AND p.shop_id=v.shop_id WHERE rl.shop_id=$1 ORDER BY p.name,v.size,v.colour`,[req.auth!.shopId]);
+ return res.json({data:r.rows});
+}catch(e){return next(e);}});
+
+stockRouter.put("/stock/reorder-levels",async(req,res,next)=>{
+ const p=reorderLevelSchema.safeParse(req.body);
+ if(!p.success)return res.status(400).json({error:"Invalid reorder level",details:p.error.flatten()});
+ try{
+  const shopId=req.auth!.shopId;
+  const [warehouse,variant]=await Promise.all([
+   pool.query("SELECT id FROM warehouses WHERE id=$1 AND shop_id=$2 AND is_active=true",[p.data.warehouseId,shopId]),
+   pool.query("SELECT id FROM product_variants WHERE id=$1 AND shop_id=$2 AND is_active=true",[p.data.variantId,shopId])
+  ]);
+  if(!warehouse.rowCount||!variant.rowCount)return res.status(404).json({error:"Warehouse or product variant not found"});
+  const r=await pool.query(`INSERT INTO stock_reorder_levels(shop_id,warehouse_id,variant_id,reorder_level,target_stock) VALUES($1,$2,$3,$4,$5) ON CONFLICT(shop_id,warehouse_id,variant_id) DO UPDATE SET reorder_level=EXCLUDED.reorder_level,target_stock=EXCLUDED.target_stock,updated_at=now() RETURNING id,warehouse_id,variant_id,reorder_level,target_stock,updated_at`,[shopId,p.data.warehouseId,p.data.variantId,p.data.reorderLevel,p.data.targetStock]);
+  await pool.query("INSERT INTO audit_logs(shop_id,user_id,action,entity_type,entity_id,metadata) VALUES($1,$2,'stock.reorder_level.updated','stock_reorder_level',$3,$4)",[shopId,req.auth!.userId,r.rows[0].id,JSON.stringify({warehouseId:p.data.warehouseId,variantId:p.data.variantId,reorderLevel:p.data.reorderLevel,targetStock:p.data.targetStock})]);
+  return res.json({data:r.rows[0]});
+ }catch(e){return next(e);}
+});
