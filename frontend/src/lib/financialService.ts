@@ -7,7 +7,6 @@ import {
   TransactionType,
   PaymentMethod,
 } from "./financialTypes";
-import { supabase } from "./supabaseClient";
 
 export type TimeframePreset = "today" | "week" | "month" | "yearly" | "all";
 
@@ -265,36 +264,6 @@ export async function getFinancialTransactions(): Promise<FinancialTransaction[]
       if (typeof window !== "undefined") {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(localData));
       }
-    }
-
-    const { data: salesData } = await supabase
-      .from("sales")
-      .select("id, total_amount, payment_method, created_at, customer_name")
-      .order("created_at", { ascending: false });
-
-    if (salesData && salesData.length > 0) {
-      const supabaseTransactions: FinancialTransaction[] = salesData.map((s) => ({
-        id: `db-sale-${s.id}`,
-        transactionNumber: `SALE-${String(s.id).substring(0, 8).toUpperCase()}`,
-        date: s.created_at ? s.created_at.split("T")[0] : getRelativeDateString(0),
-        type: "income" as TransactionType,
-        category: "Apparel Sales",
-        amount: Number(s.total_amount) || 0,
-        paymentMethod: (s.payment_method || "Cash") as PaymentMethod,
-        status: "completed",
-        partyName: s.customer_name || "Walk-in Customer",
-        orderId: `ORD-${String(s.id).substring(0, 6)}`,
-        notes: "Live sale from POS / Scanner",
-        createdAt: s.created_at || new Date().toISOString(),
-      }));
-
-      const mergedMap = new Map<string, FinancialTransaction>();
-      supabaseTransactions.forEach((t) => mergedMap.set(t.id, t));
-      localData.forEach((t) => mergedMap.set(t.id, t));
-
-      return Array.from(mergedMap.values()).sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-      );
     }
 
     return localData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
