@@ -23,9 +23,9 @@ The 38-page GARMENTOS module specification is the product baseline. A module is 
 - [x] POS UI: cash/UPI/card/bank transfer/wallet/gift-card/other tenders, split payment rows, amount balancing and optional transaction references; basic browser receipt print added.
 - [ ] Receipt with full line-item/tax/payment breakdown, receipt share, cash drawer integration and payment-provider settlement.
 - [x] Web returns/refunds workflow: select invoice, fetch sale lines, enter partial quantities, choose refund method, optional restock, view return history.
-- [ ] Mobile returns screen, exchange workflow, purchase returns and return authorization.
+- [ ] Mobile returns screen, exchange workflow and return authorization (purchase returns API/web workflow delivered).
 - [x] Purchase returns API + PostgreSQL migration: only received/unreturned quantities can be returned; sellable stock is decremented transactionally, stock movement/audit rows are written, and supplier ledger records the return as a credit.
-- [ ] Supplier payment allocation against specific purchase bills in the UI, supplier credit notes and payment reconciliation.
+- [x] Supplier payment allocation against a selected purchase bill in the supplier UI; API validates the bill belongs to the supplier and rejects allocations above its outstanding balance.\n- [ ] Supplier credit notes and payment reconciliation.
 - [ ] Purchase receipt document/history with per-delivery audit lines; stock counts, inter-warehouse transfers, reorder alerts and ageing.
 - [ ] Product edit/archive, full variant matrix, images/storage, size charts, attributes, import/export.
 - [ ] Barcode lookup/label printing.
