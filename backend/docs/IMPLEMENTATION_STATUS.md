@@ -29,10 +29,12 @@ The 38-page GARMENTOS module specification is the product baseline. A module is 
 - [ ] Supplier credit notes and payment reconciliation.
 - [ ] Purchase receipt document/history with per-delivery audit lines; stock counts, inter-warehouse transfers, reorder alerts and ageing.
 - [ ] Product edit/archive, full variant matrix, images/storage, size charts, attributes, import/export.
-- [ ] Barcode lookup/label printing.
+- [x] POS camera barcode scan and manual SKU/barcode lookup.
+- [ ] Barcode label printing and bulk generation.
 - [ ] Email verification and password reset.
 - [ ] Tenant profile/onboarding, GSTIN and business settings.
-- [ ] Customer ledger, loyalty, segmentation and consent.
+- [x] Tenant-scoped reward points ledger endpoint with row locking, balance validation, tier update and audit event.
+- [ ] Customer ledger, automated earn/redeem at checkout, segmentation and consent.
 - [ ] GST/HSN configuration, intra/inter-state tax snapshots and accountant-reviewed GST reports.
 - [ ] Double-entry accounting, cash/bank, expenses, receivables/payables and reconciliation.
 - [ ] Staff, permissions, branch scope and attendance.
