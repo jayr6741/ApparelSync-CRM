@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { clearSession } from "@/lib/auth";
 import {
   LayoutDashboard,
   FileText,
@@ -17,6 +18,8 @@ import {
   LogOut,
   ScanLine,
   ShoppingCart,
+  Truck,
+  Store,
   Menu,
   X,
 } from "lucide-react";
@@ -28,6 +31,8 @@ const navItems = [
   { label: "Scanner", href: "/dashboard/scanner", icon: ScanLine },
   { label: "Reports", href: "/dashboard/reports", icon: FileText },
   { label: "Customers", href: "/dashboard/customers", icon: Contact },
+  { label: "Suppliers", href: "/dashboard/suppliers", icon: Store },
+  { label: "Purchases", href: "/dashboard/purchases", icon: Truck },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
@@ -37,11 +42,8 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("apparelsync_auth");
-      localStorage.removeItem("apparelsync_user");
-    }
-    router.push("/login");
+    clearSession();
+    router.replace("/login");
   };
 
   return (

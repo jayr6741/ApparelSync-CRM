@@ -36,6 +36,22 @@ authRouter.post("/register", async (req, res, next) => {
       [shopName, baseSlug]
     );
     await client.query("INSERT INTO shop_members(shop_id,user_id,role) VALUES($1,$2,'owner')", [shop.rows[0].id, user.rows[0].id]);
+    const branch = await client.query(
+      "INSERT INTO branches(shop_id,code,name) VALUES($1,'MAIN','Main Branch') RETURNING id",
+      [shop.rows[0].id]
+    );
+    const warehouse = await client.query(
+      "INSERT INTO warehouses(shop_id,branch_id,name) VALUES($1,$2,'Main Warehouse') RETURNING id",
+      [shop.rows[0].id, branch.rows[0].id]
+    );
+    await client.query(
+      "INSERT INTO pos_registers(shop_id,branch_id,name,code) VALUES($1,$2,'Main Register','MAIN')",
+      [shop.rows[0].id, branch.rows[0].id]
+    );
+    await client.query(
+      "INSERT INTO price_lists(shop_id,name,channel,is_default) VALUES($1,'Retail','retail',true)",
+      [shop.rows[0].id]
+    );
     await client.query("COMMIT");
     const token = issueToken(user.rows[0].id, shop.rows[0].id, "owner");
     return res.status(201).json({ token, user: user.rows[0], shop: shop.rows[0] });
