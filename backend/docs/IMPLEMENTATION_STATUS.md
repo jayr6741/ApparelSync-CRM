@@ -1,53 +1,39 @@
 # GARMENTOS implementation status
 
-This file is the engineering checklist derived from the 38-page GarmentOS Module Specification (version 1.0, 16 November 2026). A module is complete only when its web/mobile screens, API, PostgreSQL migration, server-side tenant/role checks, validation, audit events and automated workflow tests are implemented.
+The 38-page GarmentOS module specification is the product baseline. A module is complete only after its screens, API, PostgreSQL schema, authorization, validation, audit trail and workflow tests exist.
 
-## Platform foundation
-- [x] Three independent app folders: frontend, mobile, backend.
-- [x] Independent package manifests and environment examples.
-- [x] PostgreSQL connection pool in backend.
-- [ ] Prisma ORM and migration workflow.
-- [ ] OpenAPI contract and generated clients.
-- [ ] Production logging, metrics, error reporting and backup/restore automation.
+## Delivered foundations
+- [x] Three independent app folders and separate environment examples.
+- [x] PostgreSQL pool and health endpoint.
+- [x] Registration and login API with password hashing and shop membership.
+- [x] Web registration/login now call the API; dashboard checks for a session.
+- [x] Tenant-scoped category and product APIs.
+- [x] Garment product master fields and size-colour variant creation.
+- [x] Web inventory list and initial product/variant creation screen.
+- [x] Garment catalogue, branch, warehouse, price-list, stock ledger and audit foundation migrations.
+- [x] API validates JWT issuer/audience and rechecks active shop membership on protected calls.
 
-## Business and access
-- [x] Registration creates a user, shop tenant and owner membership in one transaction (API foundation).
-- [x] Login with password hash and signed 12-hour bearer token (API foundation).
-- [ ] Email/phone verification, password reset, refresh-token rotation and session/device revocation.
-- [ ] Tenant settings, resumable onboarding, GST profile, financial year, registers and business preferences.
-- [ ] Roles/permissions matrix, branch-scoped authorization and audited platform support.
-
-## Garment catalogue
-- [x] Product master garment fields and category CRUD (API foundation).
-- [x] Size/colour variant creation with SKU/barcode and price fields (API foundation).
-- [x] Database foundation for images, attributes, size charts and retail/wholesale price lists.
-- [ ] Full attribute/size-chart/price-list APIs and web/mobile screens.
-- [ ] Spreadsheet import/export and image object storage.
-
-## Inventory, sales and commerce
-- [x] Database foundation for branches, warehouses, stock balances, stock movements and audit logs.
-- [ ] Opening stock, goods receipt, adjustment approvals, counts, transfers, reorder and stock ageing.
-- [ ] POS atomic checkout, idempotency, split tenders, invoice numbering and printing/sharing.
-- [ ] Orders, reservations, fulfilment, returns, refunds and size/colour exchanges.
-- [ ] Supplier/purchase orders, goods receipts, purchase invoices, payments and returns.
-- [ ] Customer segmentation, ledgers, loyalty, coupons and consent management.
-
-## Finance and insights
+## Still pending
+- [ ] Refresh tokens, server-side session persistence/revocation, email verification and password reset.
+- [ ] Tenant profile/onboarding, GSTIN and business settings screens.
+- [ ] Product edit/archive, variant matrix bulk entry, images/storage, size chart and attribute APIs.
+- [ ] Barcode lookup/printing and CSV import/export.
+- [ ] Opening stock, stock receipts, adjustments, stock counts, transfers, reorder and stock ageing.
+- [ ] POS atomic checkout, idempotency, payment split, invoice sequence, receipt print/share.
+- [ ] Returns, refunds, exchange, order reservation and fulfilment.
+- [ ] Supplier, purchase order, goods receipt, purchase invoice, supplier payment and purchase returns.
+- [ ] Customer profiles, ledger, loyalty and consent.
+- [ ] GST/HSN configuration, tax snapshots and GST working reports (accountant review required).
 - [ ] Double-entry accounting, cash/bank, expenses, receivables/payables and reconciliation.
-- [ ] Configurable GST/HSN, intra/inter-state tax snapshots and accountant-review GST working reports.
-- [ ] Sales, margin, size/colour, stock ageing, dead stock, returns, supplier, customer, employee and branch reports.
+- [ ] Staff, role/permission matrix, branch scope and attendance.
+- [ ] Reports and dashboards backed by PostgreSQL.
+- [ ] Online storefront, cart and checkout.
+- [ ] Notification centre and email/push/WhatsApp integrations.
+- [ ] SaaS plans, trials, entitlement enforcement and verified billing webhooks.
+- [ ] Mobile authentication and real workflows.
+- [ ] Offline cache, transaction outbox, idempotent sync and conflict handling.
+- [ ] API integration, tenant-isolation, web/mobile E2E, security and load tests.
+- [ ] Deployment, monitoring and backup/restore drill.
 
-## People, storefront and platform
-- [ ] Staff invitations, roles, permissions, attendance, branch scope and activity log screens.
-- [ ] Tenant storefront, public catalogue, cart, checkout, online order fulfilment.
-- [ ] In-app/push/email/WhatsApp notification centre and integration settings.
-- [ ] SaaS plans, trials, entitlements, payment verification, renewals, expiry and restricted mode.
-- [ ] Android offline cache, local transaction store, outbox, idempotent sync and conflict resolution.
-
-## Quality gates
-- [ ] Backend unit/integration tests and tenant-isolation tests.
-- [ ] Web and Android end-to-end workflows.
-- [ ] Load/security tests, backup restore drill, production deployment and monitoring.
-
-## Current honest status
-The auth and catalogue API work is an initial vertical slice, not a complete or production-ready SaaS. The mobile app is still a starter shell and existing web login/register/dashboard flows still need migration from demo/Supabase behavior to the API. Apply migrations only to a fresh development database until a reviewed upgrade and backup/restore procedure exists.
+## Honest verification status
+These changes are committed to GitHub but have not been installed or executed in a local environment. Do not treat this repository as production-ready until migrations, typechecks, tests and backup/restore checks pass. Apply migrations only to a fresh development database until an upgrade path is reviewed.

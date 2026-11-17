@@ -54,11 +54,13 @@ catalogRouter.get("/products", async (req, res, next) => {
     const q = String(req.query.q ?? "").trim().slice(0,100);
     const result = await pool.query(
       `SELECT p.id,p.name,p.sku,p.description,p.department,p.garment_type,p.brand,p.fabric,p.pattern,p.fit,p.season,
-        c.name AS category, count(v.id)::int AS variant_count
+        c.name AS category, count(v.id)::int AS variant_count,
+        COALESCE(min(v.price),p.price) AS min_selling_price,
+        COALESCE(sum(v.stock_quantity),p.stock_quantity)::int AS stock_quantity
        FROM products p LEFT JOIN categories c ON c.id=p.category_id AND c.shop_id=p.shop_id
        LEFT JOIN product_variants v ON v.product_id=p.id AND v.shop_id=p.shop_id
        WHERE p.shop_id=$1 AND ($2='' OR p.name ILIKE '%'||$2||'%' OR p.sku ILIKE '%'||$2||'%' OR coalesce(p.brand,'') ILIKE '%'||$2||'%')
-       GROUP BY p.id,c.name ORDER BY p.created_at DESC LIMIT 100`,
+       GROUP BY p.id,c.name ORDER BY p.created_at DESC LIMIT 200`,
       [req.auth!.shopId, q]
     );
     return res.json({ data: result.rows });
@@ -82,6 +84,16 @@ catalogRouter.post("/products", async (req, res, next) => {
     return next(error);
   }
 });
+catalogRouter.get("/products/:productId/variants", async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      `SELECT id,size,colour,sku,barcode,mrp,price AS selling_price,wholesale_price,cost_price,tax_rate,stock_quantity
+       FROM product_variants WHERE shop_id=$1 AND product_id=$2 ORDER BY colour,size`,
+      [req.auth!.shopId,req.params.productId]
+    );
+    return res.json({ data: result.rows });
+  } catch (error) { return next(error); }
+});
 catalogRouter.post("/products/:productId/variants", async (req, res, next) => {
   const parsed = variantsSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid variants", details: parsed.error.flatten() });
@@ -93,9 +105,9 @@ catalogRouter.post("/products/:productId/variants", async (req, res, next) => {
     const created = [];
     for (const v of parsed.data.variants) {
       const row = await client.query(
-        `INSERT INTO product_variants(shop_id,product_id,size,color,colour,sku,barcode,price,mrp,wholesale_price,cost_price,tax_rate)
-         VALUES($1,$2,$3,$4,$4,$5,$6,$7,$8,$9,$10,$11)
-         RETURNING id,size,colour,sku,barcode,mrp,price AS selling_price,wholesale_price,cost_price,tax_rate`,
+        `INSERT INTO product_variants(shop_id,product_id,size,color,sku,barcode,price,mrp,wholesale_price,cost_price,tax_rate)
+         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+         RETURNING id,size,color AS colour,sku,barcode,mrp,price AS selling_price,wholesale_price,cost_price,tax_rate,stock_quantity`,
         [req.auth!.shopId,req.params.productId,v.size,v.colour,v.sku,v.barcode ?? null,v.sellingPrice,v.mrp,v.wholesalePrice ?? null,v.costPrice,v.taxRate]
       );
       created.push(row.rows[0]);
