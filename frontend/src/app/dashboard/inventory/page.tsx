@@ -12,11 +12,13 @@ type Product = {
   variant_count: number; min_selling_price: string | number; stock_quantity: number;
 };
 type ApiList<T> = { data: T[] };
+type VariantOption = { id:string; product_name:string; sku:string; size:string; colour:string };
 type StockRow = { variant_id:string; product_name:string; sku:string; size:string; colour:string; warehouse_name:string; on_hand:number; reserved:number; damaged:number; available:number };
 
 export default function InventoryPage() {
   const [products,setProducts] = useState<Product[]>([]);
   const [stockRows,setStockRows] = useState<StockRow[]>([]);
+  const [variantOptions,setVariantOptions] = useState<VariantOption[]>([]);
   const [categories,setCategories] = useState<Category[]>([]);
   const [query,setQuery] = useState("");
   const [loading,setLoading] = useState(true);
@@ -44,12 +46,13 @@ export default function InventoryPage() {
     if (!session) return;
     setLoading(true); setError("");
     try {
-      const [p,c,s] = await Promise.all([
+      const [p,c,s,v] = await Promise.all([
         apiRequest<ApiList<Product>>("/products",{method:"GET"},session.token),
         apiRequest<ApiList<Category>>("/categories",{method:"GET"},session.token),
         apiRequest<ApiList<StockRow>>("/stock",{method:"GET"},session.token),
+        apiRequest<ApiList<VariantOption>>("/variants",{method:"GET"},session.token),
       ]);
-      setProducts(p.data); setCategories(c.data); setStockRows(s.data);
+      setProducts(p.data); setCategories(c.data); setStockRows(s.data); setVariantOptions(v.data);
     } catch(e) { setError(e instanceof Error ? e.message : "Could not load inventory"); }
     finally { setLoading(false); }
   },[]);
@@ -116,7 +119,7 @@ export default function InventoryPage() {
 
     <form onSubmit={adjustStock} className="grid gap-3 rounded-2xl border border-slate-800 bg-[#111520] p-5 md:grid-cols-4">
       <div className="md:col-span-4"><h2 className="font-semibold text-white">Stock adjustment / opening balance</h2><p className="text-xs text-slate-500">Adjustments are recorded in the stock movement ledger.</p></div>
-      <label className="text-sm text-slate-300">Variant<select required value={adjustVariant} onChange={e=>setAdjustVariant(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-white"><option value="">Select variant</option>{stockRows.map((v,i)=><option key={v.variant_id+i} value={v.variant_id}>{v.product_name} · {v.size}/{v.colour} · {v.sku}</option>)}</select></label>
+      <label className="text-sm text-slate-300">Variant<select required value={adjustVariant} onChange={e=>setAdjustVariant(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-white"><option value="">Select variant</option>{variantOptions.map(v=><option key={v.id} value={v.id}>{v.product_name} · {v.size}/{v.colour} · {v.sku}</option>)}</select></label>
       <label className="text-sm text-slate-300">Quantity change (+/-)<input type="number" step="1" required value={adjustQty} onChange={e=>setAdjustQty(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-white"/></label>
       <label className="text-sm text-slate-300">Reason<input required minLength={3} value={adjustReason} onChange={e=>setAdjustReason(e.target.value)} placeholder="Opening count / correction / damage" className="mt-2 w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-white"/></label>
       <div className="flex items-end"><button disabled={saving||!adjustVariant} className="w-full rounded-lg bg-emerald-400 px-4 py-3 font-semibold text-slate-950 disabled:opacity-50">Save adjustment</button></div>
