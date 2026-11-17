@@ -10,6 +10,7 @@ import {purchasingRouter} from "./routes/purchasing.routes";
 import {salesRouter} from "./routes/sales.routes";
 import {reportsRouter} from "./routes/reports.routes";
 import {stockRouter} from "./routes/stock.routes";
+import {returnsRouter} from "./routes/returns.routes";
 
 const app=express();app.disable("x-powered-by");app.use(cors({origin:env.corsOrigin.split(",").map(x=>x.trim())}));app.use(express.json({limit:"1mb"}));
 app.get("/",(_req,res)=>res.json({name:"GARMENTOS API",version:"0.6.0"}));
