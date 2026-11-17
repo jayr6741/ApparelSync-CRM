@@ -1,8 +1,8 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import ScannerPOSPage from "@/app/dashboard/scanner/page";
-import { supabase } from "@/lib/supabaseClient";
+import { render, screen } from "@testing-library/react";
+import ScannerPage from "@/app/dashboard/scanner/page";
+
 import { PaymentProcessorFactory, BkashPaymentProcessor, CreditCardPaymentProcessor } from "@/lib/patterns/PaymentFactory";
 import { InvoiceBuilder } from "@/lib/patterns/InvoiceBuilder";
 import { PosEventHub } from "@/lib/patterns/EventObserver";
@@ -12,35 +12,7 @@ describe("Negative Testing & Boundary Failure Handling", () => {
     vi.restoreAllMocks();
   });
 
-  // ─── Negative Test 1: Scanning Unregistered Barcode ─────────────────────────
-  it("Negative Case 1: Scanning an unregistered barcode displays error banner and allows retry", async () => {
-    vi.spyOn(supabase, "from").mockImplementation((table: string) => {
-      if (table === "products") {
-        return {
-          select: vi.fn().mockReturnValue({
-            or: vi.fn().mockReturnValue({
-              // Returns null/not found for invalid barcode
-              maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-            }),
-          }),
-        } as any;
-      }
-      return {} as any;
-    });
-
-    render(<ScannerPOSPage />);
-
-    const barcodeInput = screen.getByPlaceholderText("Enter product SKU or barcode...");
-    fireEvent.change(barcodeInput, { target: { value: "INVALID-BARCODE-99999" } });
-    fireEvent.click(screen.getByText("Look up"));
-
-    await waitFor(() => {
-      expect(screen.getByText(/No product found matching code/i)).toBeDefined();
-    });
-
-    // Verify Cart remains empty
-    expect(screen.getByText("Your cart is empty")).toBeDefined();
-  });
+  it("routes barcode staff into the PostgreSQL POS workflow",()=>{render(<ScannerPage/>);expect(screen.getByRole("link",{name:"Open POS"}).getAttribute("href")).toBe("/dashboard/pos");});
 
   // ─── Negative Test 2: Payment Gateway Negative & Zero Amounts ───────────────
   it("Negative Case 2: Payment processor rejects zero and negative transaction amounts", () => {
