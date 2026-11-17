@@ -16,6 +16,7 @@ The 38-page GARMENTOS module specification is the product baseline. A module is 
 - [x] Invoice sequence, idempotency, payment ledger, stock validation/decrement, tax snapshot and audit event.
 - [x] Tenant-scoped sales overview reports and recent sales dashboard.
 - [x] Stock list, warehouse list and transactional opening/adjustment/damage quantity API with movement/audit records; web stock view and adjustment form.
+- [x] Inter-warehouse stock transfer API, transfer documents/items, row-locked stock movement pair, audit event and web transfer form/history (migration 008).
 - [x] Transactional sales return/refund API with partial-quantity validation, idempotency, optional restock, refund ledger and audit event (migration 005).
 - [x] GitHub Actions CI configured for backend, web and mobile; first run not yet confirmed green.
 
@@ -27,7 +28,7 @@ The 38-page GARMENTOS module specification is the product baseline. A module is 
 - [x] Purchase returns API + PostgreSQL migration: only received/unreturned quantities can be returned; sellable stock is decremented transactionally, stock movement/audit rows are written, and supplier ledger records the return as a credit.
 - [x] Supplier payment allocation against a selected purchase bill in the supplier UI; API validates the bill belongs to the supplier and rejects allocations above its outstanding balance.
 - [ ] Supplier credit notes and payment reconciliation.
-- [ ] Purchase receipt document/history with per-delivery audit lines; stock counts, inter-warehouse transfers, reorder alerts and ageing.
+- [ ] Purchase receipt document/history with per-delivery audit lines; stock counts, reorder alerts and ageing.
 - [ ] Product edit/archive, full variant matrix, images/storage, size charts, attributes, import/export.
 - [x] POS camera barcode scan and manual SKU/barcode lookup.
 - [ ] Barcode label printing and bulk generation.
