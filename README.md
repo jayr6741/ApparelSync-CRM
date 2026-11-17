@@ -63,7 +63,7 @@ GARMENTOS development is in progress on the `garmentos-dev` branch.
 
 - The active dashboard, sales/invoice list, customer directory/search, inventory, purchasing, supplier ledger, POS checkout, returns and reports are being moved to the Express API backed by PostgreSQL.
 - The old Supabase client and Supabase-only integration tests have been removed from the updated web workflow. Historical SQL under `backend/database/legacy-supabase/` is archival reference only and is not part of runtime configuration.
-- The scanner route currently directs staff to the PostgreSQL POS workflow; a dedicated barcode-first POS flow still needs to be completed.
+- The POS workflow includes live camera barcode scanning and manual SKU/barcode lookup; the legacy scanner route forwards staff to POS.
 - Loyalty calculations and reward-ledger writes use a tenant-scoped PostgreSQL endpoint with transactional balance updates.
 - Mobile is an initial login/catalog/checkout foundation and still needs the remaining operational screens.
 - A clean dependency install, production builds, database migration run, automated test suite, end-to-end checks and security review are still required before production use.
