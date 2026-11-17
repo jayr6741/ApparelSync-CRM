@@ -18,6 +18,7 @@ import {
   LogOut,
   ScanLine,
   ShoppingCart,
+  CreditCard,
   Truck,
   Store,
   Menu,
@@ -27,6 +28,7 @@ import {
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Inventory", href: "/dashboard/inventory", icon: Briefcase },
+  { label: "POS Billing", href: "/dashboard/pos", icon: CreditCard },
   { label: "Orders", href: "/dashboard/orders", icon: ShoppingCart },
   { label: "Scanner", href: "/dashboard/scanner", icon: ScanLine },
   { label: "Reports", href: "/dashboard/reports", icon: FileText },

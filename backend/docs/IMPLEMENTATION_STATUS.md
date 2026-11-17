@@ -7,20 +7,20 @@ The 38-page GARMENTOS module specification is the product baseline. A module is 
 - [x] PostgreSQL pool and health endpoint.
 - [x] Web registration/login connected to API; password hashing, JWT verification, dashboard session gate and logout.
 - [x] Registration provisions Main Branch, Main Warehouse, POS register and Retail price list (requires migrations 002+).
-- [x] Tenant-scoped garment categories/products and size-colour variant APIs.
-- [x] Web inventory list and initial product/variant creation form.
-- [x] Tenant-scoped customer list/create/update API and customer directory.
-- [x] Supplier list/create API and supplier screen.
-- [x] Purchase order create/list/receive API and screen; receipt updates stock balances and stock movement ledger transactionally.
-- [x] POS checkout API foundation with invoice sequencing, idempotency key, payment split ledger, stock validation/decrement, tax snapshot and audit event (requires migration 004).
-- [x] GitHub Actions CI workflow for backend, web and mobile install/typecheck/build.
+- [x] Tenant-scoped garment categories/products and size-colour variant APIs; web inventory list/create.
+- [x] Tenant-scoped customer list/create/update API and directory.
+- [x] Supplier list/create API and screen.
+- [x] Purchase order create/list/receive API and UI; stock receipt updates stock balances and movement ledger transactionally.
+- [x] POS transactional checkout API, invoice sequencing, idempotency, split-tender ledger, stock validation/decrement, tax snapshot and audit event.
+- [x] POS web screen for variant search, cart, stock limits and cash checkout.
+- [x] GitHub Actions CI workflow for backend, web and mobile install/typecheck/build (first run not yet confirmed green).
 
 ## Still pending
-- [ ] POS cart/scanner/checkout UI, receipt print/share and cash drawer integration.
-- [ ] Return, refund, exchange and order fulfilment workflows.
+- [ ] POS card/UPI/split tender UI, receipt print/share and cash drawer integration.
+- [ ] Returns, refunds, exchanges, order reservation and fulfilment.
 - [ ] Purchase partial receipts, purchase returns, supplier payments and supplier ledger.
 - [ ] Opening stock, adjustments, stock counts, transfers, reorder and ageing.
-- [ ] Product edit/archive, full variant matrix, images/storage, size charts, attributes and import/export.
+- [ ] Product edit/archive, full variant matrix, images/storage, size charts, attributes, import/export.
 - [ ] Barcode lookup/label printing.
 - [ ] Persistent refresh-token/session revocation, email verification and password reset.
 - [ ] Tenant profile/onboarding, GSTIN and business settings.
@@ -37,4 +37,4 @@ The 38-page GARMENTOS module specification is the product baseline. A module is 
 - [ ] API/web/mobile E2E, tenant isolation, security/load tests, deployment, monitoring and backup/restore drill.
 
 ## Verification
-CI is configured but has not yet been confirmed green. Database migrations have not been executed against PostgreSQL in this environment. Do not claim production readiness until migrations, builds, tests, security review and backup/restore checks pass.
+CI is configured but not yet confirmed green. Migrations have not been executed against PostgreSQL in this environment. Do not claim production readiness until migrations, builds, tests, security review and backup/restore checks pass.
