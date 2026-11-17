@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4000";
 
 type ApiState = "idle" | "checking" | "connected" | "error";
 
