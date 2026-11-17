@@ -1,38 +1,33 @@
 # GARMENTOS backend
 
-Express + TypeScript API and the single home for PostgreSQL database assets and project engineering documentation.
+Express + TypeScript API and the single home for PostgreSQL database assets and engineering documentation.
 
 ## Install and run
-
 ```powershell
 npm install
 Copy-Item .env.example .env
-# Edit .env: set DATABASE_URL and AUTH_SECRET
+# Configure DATABASE_URL and a random AUTH_SECRET (32+ characters)
 npm run dev
 ```
 
-Health check: GET http://localhost:4000/api/health.
+API health: `GET http://localhost:4000/api/health`.
 
-## Build and checks
+## Current API foundation
+- `POST /api/v1/auth/register` — create user, shop and owner membership atomically.
+- `POST /api/v1/auth/login` — verify password and return a signed bearer token.
+- `GET/POST /api/v1/categories` — tenant-scoped categories.
+- `GET/POST /api/v1/products` — tenant-scoped garment product master.
+- `POST /api/v1/products/:productId/variants` — create size/colour variants in a transaction.
 
+Send `Authorization: Bearer <token>` to protected endpoints.
+
+## Database
+Apply `database/migrations/001_initial_postgresql.sql` followed by `002_garment_catalog_foundation.sql` to a NEW empty development database. Do not apply the old Supabase SQL under `database/legacy-supabase/` to PostgreSQL.
+
+## Quality checks
 ```powershell
 npm run typecheck
 npm run build
-npm start
 ```
 
-## Database
-
-- Clean PostgreSQL migrations: database/migrations/
-- Historical Supabase SQL reference only: database/legacy-supabase/
-- Never apply legacy Supabase migrations to self-hosted PostgreSQL.
-- Backups and database dumps must not be committed.
-- Keep PostgreSQL credentials and auth secrets in this folder's local .env only.
-
-## Documentation
-
-Architecture, audit, development and migration documents are in docs/.
-
-## Current implementation status
-
-The API currently contains an Express server, PostgreSQL connection pool and health endpoint. Authentication, tenant authorization, catalog, inventory, customer, sales/POS and reporting APIs are not implemented yet. Frontend Supabase integrations have not yet been fully migrated. This is not production-ready.
+The API, web and mobile modules are still under development. See `docs/IMPLEMENTATION_STATUS.md` for the module-by-module acceptance checklist.

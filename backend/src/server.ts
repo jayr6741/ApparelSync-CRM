@@ -3,29 +3,27 @@ import express from "express";
 import { env } from "./config/env";
 import { pool } from "./db/pool";
 import { healthRouter } from "./routes/health.routes";
+import { authRouter } from "./routes/auth.routes";
+import { catalogRouter } from "./routes/catalog.routes";
 
 const app = express();
-
 app.disable("x-powered-by");
 app.use(cors({ origin: env.corsOrigin.split(",").map((item) => item.trim()) }));
 app.use(express.json({ limit: "1mb" }));
 
-app.get("/", (_request, response) => {
-  response.json({ name: "GARMENTOS API", version: "0.1.0" });
-});
-
+app.get("/", (_request, response) => response.json({ name: "GARMENTOS API", version: "0.2.0" }));
 app.use("/api/health", healthRouter);
+app.use("/api/v1/auth", authRouter);
+app.use("/api/v1", catalogRouter);
 
-const server = app.listen(env.port, () => {
-  console.log(`GARMENTOS API listening on http://localhost:${env.port}`);
+app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
+  console.error("GARMENTOS API error:", error);
+  response.status(500).json({ error: "Internal server error" });
 });
 
+const server = app.listen(env.port, () => console.log(`GARMENTOS API listening on http://localhost:${env.port}`));
 async function shutdown() {
-  server.close(async () => {
-    await pool.end();
-    process.exit(0);
-  });
+  server.close(async () => { await pool.end(); process.exit(0); });
 }
-
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
