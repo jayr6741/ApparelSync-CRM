@@ -33,7 +33,8 @@ salesRouter.post("/sales/checkout",async(req,res,next)=>{
   const prior=await c.query("SELECT id,invoice_number,total,status FROM sales WHERE shop_id=$1 AND idempotency_key=$2",[shopId,p.data.idempotencyKey]);
   if(prior.rowCount){await c.query("COMMIT");return res.json({data:prior.rows[0],replayed:true});}
   let customerId=p.data.customerId??null;
-  if(customerId){const customer=await c.query("SELECT id FROM customers WHERE id=$1 AND shop_id=$2",[customerId,shopId]);if(!customer.rowCount){await c.query("ROLLBACK");return res.status(400).json({error:"Customer does not belong to this shop"});}}
+  let customerPoints=0,customerTier="Bronze";
+  if(customerId){const customer=await c.query("SELECT id,reward_points,tier FROM customers WHERE id=$1 AND shop_id=$2 FOR UPDATE",[customerId,shopId]);if(!customer.rowCount){await c.query("ROLLBACK");return res.status(400).json({error:"Customer does not belong to this shop"});}customerPoints=Number(customer.rows[0].reward_points)||0;customerTier=customer.rows[0].tier||"Bronze";}
   const warehouse=await c.query("SELECT w.id,w.branch_id FROM warehouses w WHERE w.shop_id=$1 AND w.is_active=true ORDER BY w.created_at LIMIT 1",[shopId]);
   if(!warehouse.rowCount){await c.query("ROLLBACK");return res.status(409).json({error:"No active warehouse is configured"});}
   const lines=[];let subtotal=0,taxTotal=0;
@@ -65,8 +66,20 @@ salesRouter.post("/sales/checkout",async(req,res,next)=>{
     await c.query("UPDATE stock_balances SET on_hand=on_hand-$4,updated_at=now() WHERE shop_id=$1 AND warehouse_id=$2 AND variant_id=$3",[shopId,warehouse.rows[0].id,line.item.variantId,line.item.quantity]);
     await c.query(`INSERT INTO stock_movements(shop_id,warehouse_id,variant_id,movement_type,quantity_delta,source_type,source_id,created_by) VALUES($1,$2,$3,'sale',$4,'sale',$5,$6)`,[shopId,warehouse.rows[0].id,line.item.variantId,-line.item.quantity,sale.rows[0].id,req.auth!.userId]);
   }
+  let pointsEarned=0;
+  if(customerId){
+    const multiplier=customerTier==="Gold"?1.5:customerTier==="Silver"?1.2:1;
+    pointsEarned=Math.floor(total/10*multiplier);
+    if(pointsEarned>0){
+      const newBalance=customerPoints+pointsEarned;
+      const newTier=newBalance>=1500?"Gold":newBalance>=500?"Silver":"Bronze";
+      await c.query("UPDATE customers SET reward_points=$3,tier=$4,updated_at=now() WHERE id=$1 AND shop_id=$2",[customerId,shopId,newBalance,newTier]);
+      await c.query("UPDATE sales SET points_earned=$3 WHERE id=$1 AND shop_id=$2",[sale.rows[0].id,shopId,pointsEarned]);
+      await c.query("INSERT INTO point_transactions(shop_id,customer_id,order_id,points_change,type,description) VALUES($1,$2,$3,$4,'EARNED',$5)",[shopId,customerId,sale.rows[0].id,pointsEarned,"Earned on invoice "+invoice]);
+    }
+  }
   for(const payment of p.data.payments)await c.query("INSERT INTO sale_payments(shop_id,sale_id,method,amount,reference_number) VALUES($1,$2,$3,$4,$5)",[shopId,sale.rows[0].id,payment.method,payment.amount,payment.referenceNumber??null]);
-  await c.query("INSERT INTO audit_logs(shop_id,user_id,action,entity_type,entity_id,metadata) VALUES($1,$2,'sale.checkout','sale',$3,$4)",[shopId,req.auth!.userId,sale.rows[0].id,JSON.stringify({invoiceNumber:invoice,items:lines.length,total})]);
+  await c.query("INSERT INTO audit_logs(shop_id,user_id,action,entity_type,entity_id,metadata) VALUES($1,$2,'sale.checkout','sale',$3,$4)",[shopId,req.auth!.userId,sale.rows[0].id,JSON.stringify({invoiceNumber:invoice,items:lines.length,total,customerId,pointsEarned})]);
   await c.query("COMMIT");return res.status(201).json({data:sale.rows[0]});
  }catch(e){await c.query("ROLLBACK");if(e instanceof Error&&(e.message.startsWith("Insufficient stock")||e.message==="Discount cannot exceed the bill total"||e.message==="Payment total must exactly match the bill total"||e.message==="A selected variant is unavailable"))return res.status(409).json({error:e.message});return next(e);}finally{c.release();}
 });
