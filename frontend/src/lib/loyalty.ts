@@ -1,3 +1,6 @@
+import { apiRequest } from "./api";
+import { readSession } from "./auth";
+
 export type CustomerTier="Bronze"|"Silver"|"Gold";
 export interface PointTransaction{id:string;customerId:string;orderId?:string|null;pointsChange:number;type:"EARNED"|"REDEEMED"|"BONUS"|"ADJUSTMENT";description:string;createdAt:string}
 export interface LoyaltySettings{dollarsPerPoint:number;pointsPerDiscount:number;discountValue:number;silverThreshold:number;goldThreshold:number;silverMultiplier:number;goldMultiplier:number}
@@ -10,5 +13,11 @@ export function getTierBadgeClass(tier:CustomerTier):string{return tier==="Gold"
 export function calculateEarnedPoints(amount:number,tier:CustomerTier="Bronze",bonus=0,settings=getLoyaltySettings()):number{return amount<=0||settings.dollarsPerPoint<=0?Math.max(0,bonus):Math.max(0,Math.floor(Math.floor(amount/settings.dollarsPerPoint)*getTierMultiplier(tier,settings))+bonus);}
 export function calculateDiscountFromPoints(points:number,settings=getLoyaltySettings()):number{return points<=0||settings.pointsPerDiscount<=0?0:Number(((points/settings.pointsPerDiscount)*settings.discountValue).toFixed(2));}
 export function getMaxRedeemablePoints(total:number,available:number,settings=getLoyaltySettings()):number{return settings.discountValue<=0?0:Math.min(available,Math.floor(total/settings.discountValue*settings.pointsPerDiscount));}
-/** Loyalty writes are disabled until the PostgreSQL ledger endpoint is enabled; never writes to a legacy cloud database. */
-export async function recordPointTransaction(_customerId:string,_pointsChange:number,_type:"EARNED"|"REDEEMED"|"BONUS"|"ADJUSTMENT",_description:string,_orderId?:string):Promise<boolean>{return false;}
+/** Persist reward points through the tenant-scoped PostgreSQL API. */
+export async function recordPointTransaction(customerId:string,pointsChange:number,type:"EARNED"|"REDEEMED"|"BONUS"|"ADJUSTMENT",description:string,orderId?:string):Promise<boolean>{
+ const session=readSession();if(!session)return false;
+ try{
+  await apiRequest("/customers/"+encodeURIComponent(customerId)+"/points",{method:"POST",body:JSON.stringify({pointsChange,type,description,orderId})},session.token);
+  return true;
+ }catch(error){console.error("Unable to record customer reward points:",error);return false;}
+}
