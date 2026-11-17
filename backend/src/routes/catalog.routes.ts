@@ -15,3 +15,26 @@ catalogRouter.get("/products",async(req,res,next)=>{try{const q=String(req.query
 catalogRouter.post("/products",async(req,res,next)=>{const p=productSchema.safeParse(req.body);if(!p.success)return res.status(400).json({error:"Invalid product",details:p.error.flatten()});try{const v=p.data;const r=await pool.query(`INSERT INTO products(shop_id,name,sku,category_id,description,department,garment_type,brand,fabric,pattern,fit,season) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id,name,sku,category_id,description,department,garment_type,brand,fabric,pattern,fit,season`,[req.auth!.shopId,v.name,v.sku,v.categoryId??null,v.description??null,v.department,v.garmentType??null,v.brand??null,v.fabric??null,v.pattern??null,v.fit??null,v.season??null]);return res.status(201).json({data:r.rows[0]});}catch(e:any){if(e?.code==="23505")return res.status(409).json({error:"Product SKU already exists"});if(e?.code==="23503")return res.status(400).json({error:"Selected category is invalid for this shop"});return next(e);}});
 catalogRouter.get("/products/:productId/variants",async(req,res,next)=>{try{const r=await pool.query("SELECT id,size,colour,sku,barcode,mrp,price AS selling_price,wholesale_price,cost_price,tax_rate,stock_quantity FROM product_variants WHERE shop_id=$1 AND product_id=$2 ORDER BY colour,size",[req.auth!.shopId,req.params.productId]);return res.json({data:r.rows});}catch(e){return next(e);}});
 catalogRouter.post("/products/:productId/variants",async(req,res,next)=>{const p=variantsSchema.safeParse(req.body);if(!p.success)return res.status(400).json({error:"Invalid variants",details:p.error.flatten()});const c=await pool.connect();try{await c.query("BEGIN");const product=await c.query("SELECT id FROM products WHERE id=$1 AND shop_id=$2 FOR UPDATE",[req.params.productId,req.auth!.shopId]);if(!product.rowCount){await c.query("ROLLBACK");return res.status(404).json({error:"Product not found"});}const created=[];for(const v of p.data.variants){const r=await c.query(`INSERT INTO product_variants(shop_id,product_id,size,color,colour,sku,barcode,price,mrp,wholesale_price,cost_price,tax_rate) VALUES($1,$2,$3,$4,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id,size,colour,sku,barcode,mrp,price AS selling_price,wholesale_price,cost_price,tax_rate,stock_quantity`,[req.auth!.shopId,req.params.productId,v.size,v.colour,v.sku,v.barcode??null,v.sellingPrice,v.mrp,v.wholesalePrice??null,v.costPrice,v.taxRate]);created.push(r.rows[0]);}await c.query("COMMIT");return res.status(201).json({data:created});}catch(e:any){await c.query("ROLLBACK");if(e?.code==="23505")return res.status(409).json({error:"Duplicate SKU, barcode or size-colour combination"});return next(e);}finally{c.release();}});
+
+catalogRouter.put("/products/:productId",async(req,res,next)=>{
+ const p=productSchema.safeParse(req.body);
+ if(!p.success)return res.status(400).json({error:"Invalid product",details:p.error.flatten()});
+ try{
+  const v=p.data;
+  const r=await pool.query(`UPDATE products SET name=$3,sku=$4,category_id=$5,description=$6,department=$7,garment_type=$8,brand=$9,fabric=$10,pattern=$11,fit=$12,season=$13,updated_at=now() WHERE id=$1 AND shop_id=$2 AND status<>'archived' RETURNING id,name,sku,category_id,description,department,garment_type,brand,fabric,pattern,fit,season,status`,[req.params.productId,req.auth!.shopId,v.name,v.sku,v.categoryId??null,v.description??null,v.department,v.garmentType??null,v.brand??null,v.fabric??null,v.pattern??null,v.fit??null,v.season??null]);
+  if(!r.rowCount)return res.status(404).json({error:"Active product not found"});
+  await pool.query("INSERT INTO audit_logs(shop_id,user_id,action,entity_type,entity_id,metadata) VALUES($1,$2,'product.updated','product',$3,$4)",[req.auth!.shopId,req.auth!.userId,r.rows[0].id,JSON.stringify({sku:v.sku,name:v.name})]);
+  return res.json({data:r.rows[0]});
+ }catch(e:any){if(e?.code==="23505")return res.status(409).json({error:"Product SKU already exists"});if(e?.code==="23503")return res.status(400).json({error:"Selected category is invalid for this shop"});return next(e);}
+});
+catalogRouter.patch("/products/:productId/status",async(req,res,next)=>{
+ const p=z.object({status:z.enum(["active","archived"])}).safeParse(req.body);
+ if(!p.success)return res.status(400).json({error:"Status must be active or archived"});
+ try{
+  const r=await pool.query("UPDATE products SET status=$3,updated_at=now() WHERE id=$1 AND shop_id=$2 RETURNING id,name,sku,status",[req.params.productId,req.auth!.shopId,p.data.status]);
+  if(!r.rowCount)return res.status(404).json({error:"Product not found"});
+  await pool.query("UPDATE product_variants SET is_active=$3,updated_at=now() WHERE shop_id=$1 AND product_id=$2",[req.auth!.shopId,req.params.productId,p.data.status==="active"]);
+  await pool.query("INSERT INTO audit_logs(shop_id,user_id,action,entity_type,entity_id,metadata) VALUES($1,$2,$3,'product',$4,$5)",[req.auth!.shopId,req.auth!.userId,p.data.status==="archived"?"product.archived":"product.restored",req.params.productId,JSON.stringify({status:p.data.status})]);
+  return res.json({data:r.rows[0]});
+ }catch(e){return next(e);}
+});
