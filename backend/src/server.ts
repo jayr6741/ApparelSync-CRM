@@ -5,6 +5,7 @@ import { pool } from "./db/pool";
 import { healthRouter } from "./routes/health.routes";
 import { authRouter } from "./routes/auth.routes";
 import { catalogRouter } from "./routes/catalog.routes";
+import { customersRouter } from "./routes/customers.routes";
 
 const app = express();
 app.disable("x-powered-by");
@@ -15,6 +16,7 @@ app.get("/", (_request, response) => response.json({ name: "GARMENTOS API", vers
 app.use("/api/health", healthRouter);
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1", catalogRouter);
+app.use("/api/v1", customersRouter);
 
 app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
   console.error("GARMENTOS API error:", error);
