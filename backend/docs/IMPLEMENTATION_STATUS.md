@@ -10,7 +10,8 @@ The 38-page GARMENTOS module specification is the product baseline. A module is 
 - [x] Tenant-scoped garment categories/products/variants; web inventory list/create.
 - [x] Tenant-scoped customer API and web directory.
 - [x] Supplier API and web screen.
-- [x] Purchase order create/list/receive API and web workflow; receipt updates stock balances and movement ledger transactionally.
+- [x] Purchase order create/list/detail API and web workflow; full and partial receipts update stock balances and movement ledger transactionally.
+- [x] Supplier ledger summary/entries API, payment recording endpoint and supplier web ledger/payment screen.
 - [x] POS transactional checkout API and web/mobile cash checkout foundation.
 - [x] Invoice sequence, idempotency, payment ledger, stock validation/decrement, tax snapshot and audit event.
 - [x] Tenant-scoped sales overview reports and recent sales dashboard.
@@ -23,8 +24,8 @@ The 38-page GARMENTOS module specification is the product baseline. A module is 
 - [ ] Receipt with full line-item/tax/payment breakdown, receipt share, cash drawer integration and payment-provider settlement.
 - [x] Web returns/refunds workflow: select invoice, fetch sale lines, enter partial quantities, choose refund method, optional restock, view return history.
 - [ ] Mobile returns screen, exchange workflow, purchase returns and return authorization.
-- [ ] Purchase partial receipts, purchase returns, supplier payments and supplier ledger.
-- [ ] Stock counts, inter-warehouse transfers, reorder alerts and ageing.
+- [ ] Purchase returns, supplier payment allocation against specific purchase bills in the UI, supplier credit notes and payment reconciliation.
+- [ ] Purchase receipt document/history with per-delivery audit lines; stock counts, inter-warehouse transfers, reorder alerts and ageing.
 - [ ] Product edit/archive, full variant matrix, images/storage, size charts, attributes, import/export.
 - [ ] Barcode lookup/label printing.
 - [ ] Email verification and password reset.
