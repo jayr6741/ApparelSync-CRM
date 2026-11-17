@@ -10,7 +10,7 @@ type Category = { id: string; name: string };
 type Warehouse = {id:string;name:string};
 type Transfer = {id:string;transfer_number:string;from_warehouse:string;to_warehouse:string;total_units:number;created_at:string;status:string};
 type Product = {
-  id: string; name: string; sku: string; category: string | null;
+  id: string; name: string; sku: string; description?:string|null; category: string | null; status?:string;
   department: string; garment_type: string | null; brand: string | null;
   variant_count: number; min_selling_price: string | number; stock_quantity: number;
 };
@@ -42,6 +42,7 @@ export default function InventoryPage() {
   const [loading,setLoading] = useState(true);
   const [error,setError] = useState("");
   const [showForm,setShowForm] = useState(false);
+  const [editingProductId,setEditingProductId] = useState<string|null>(null);
   const [saving,setSaving] = useState(false);
   const [name,setName] = useState("");
   const [sku,setSku] = useState("");
@@ -134,6 +135,19 @@ export default function InventoryPage() {
     [p.name,p.sku,p.brand ?? "",p.category ?? ""].join(" ").toLowerCase().includes(query.toLowerCase())
   ),[products,query]);
 
+  function editProduct(product:Product){
+    setEditingProductId(product.id);setName(product.name);setSku(product.sku);setDepartment(product.department);setGarmentType(product.garment_type||"");setBrand(product.brand||"");setCategoryId(categories.find(x=>x.name===product.category)?.id||"");setShowForm(true);
+  }
+  async function toggleProductStatus(product:Product){
+    const session=readSession();if(!session)return;
+    const status=product.status==="archived"?"active":"archived";
+    if(status==="archived"&&!window.confirm("Archive "+product.name+"? It will be hidden from new sales and product selection."))return;
+    setSaving(true);setError("");
+    try{await apiRequest("/products/"+product.id+"/status",{method:"PATCH",body:JSON.stringify({status})},session.token);await load();}
+    catch(e){setError(e instanceof Error?e.message:"Could not update product status");}
+    finally{setSaving(false);}
+  }
+
   async function submit(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const session=readSession(); if(!session) return;
@@ -148,7 +162,7 @@ export default function InventoryPage() {
         method:"POST",
         body:JSON.stringify({variants:[{size,colour,sku:cleanVariantSku,mrp:Number(mrp||price),sellingPrice:Number(price),costPrice:0,taxRate:0}]}),
       },session.token);
-      setShowForm(false); setName(""); setSku(""); setGarmentType(""); setBrand(""); setVariantSku(""); setPrice(""); setMrp(""); setStock("0");
+      setShowForm(false); setEditingProductId(null); setName(""); setSku(""); setGarmentType(""); setBrand(""); setVariantSku(""); setPrice(""); setMrp(""); setStock("0");
       await load();
     } catch(e) { setError(e instanceof Error ? e.message : "Could not save product"); }
     finally { setSaving(false); }
@@ -157,7 +171,7 @@ export default function InventoryPage() {
   return <section className="space-y-6">
     <header className="flex flex-wrap items-center justify-between gap-3">
       <div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">Product catalogue</p><h1 className="mt-2 text-3xl font-bold text-white">Garment Inventory</h1><p className="mt-1 text-sm text-slate-400">Manage products, sizes, colours, SKUs and selling prices.</p></div>
-      <button onClick={()=>setShowForm(v=>!v)} className="inline-flex items-center gap-2 rounded-xl bg-emerald-400 px-4 py-3 font-semibold text-slate-950"><Plus size={18}/> Add product</button>
+      <button onClick={()=>{setEditingProductId(null);setShowForm(v=>!v);}} className="inline-flex items-center gap-2 rounded-xl bg-emerald-400 px-4 py-3 font-semibold text-slate-950"><Plus size={18}/> Add product</button>
     </header>
 
     {error && <div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</div>}
@@ -213,7 +227,7 @@ export default function InventoryPage() {
     <div className="flex flex-wrap items-center gap-3"><div className="relative min-w-[240px] flex-1"><Search className="absolute left-3 top-3.5 text-slate-500" size={17}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search product, SKU, brand..." className="w-full rounded-xl border border-slate-800 bg-[#111520] py-3 pl-10 pr-4 text-sm text-white"/></div><button onClick={()=>void load()} className="rounded-xl border border-slate-700 p-3 text-slate-300" aria-label="Refresh inventory"><RefreshCw size={17}/></button></div>
     <div className="overflow-hidden rounded-2xl border border-slate-800 bg-[#111520]">
       <div className="grid grid-cols-12 gap-3 border-b border-slate-800 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500"><span className="col-span-4">Product</span><span className="col-span-2">SKU</span><span className="col-span-2">Department</span><span className="col-span-2">Variants</span><span className="col-span-2 text-right">Price</span></div>
-      {loading ? <p className="p-6 text-sm text-slate-400">Loading inventory...</p> : filtered.length===0 ? <div className="p-10 text-center text-slate-400"><Shirt className="mx-auto mb-3 opacity-50" size={28}/><p>No products found. Add your first garment product.</p></div> : filtered.map(p=><div key={p.id} className="grid grid-cols-12 items-center gap-3 border-b border-slate-800/70 px-5 py-4 last:border-0"><div className="col-span-4 min-w-0"><p className="truncate font-semibold text-white">{p.name}</p><p className="truncate text-xs text-slate-500">{p.brand||p.garment_type||p.category||"Garment"}</p></div><span className="col-span-2 truncate text-sm text-slate-300">{p.sku}</span><span className="col-span-2 text-sm capitalize text-slate-300">{p.department}</span><span className="col-span-2 text-sm text-slate-300">{p.variant_count}</span><span className="col-span-2 text-right text-sm font-semibold text-emerald-300">₹{Number(p.min_selling_price||0).toFixed(2)}</span></div>)}
+      {loading ? <p className="p-6 text-sm text-slate-400">Loading inventory...</p> : filtered.length===0 ? <div className="p-10 text-center text-slate-400"><Shirt className="mx-auto mb-3 opacity-50" size={28}/><p>No products found. Add your first garment product.</p></div> : filtered.map(p=><div key={p.id} className="grid grid-cols-12 items-center gap-3 border-b border-slate-800/70 px-5 py-4 last:border-0"><div className="col-span-4 min-w-0"><p className="truncate font-semibold text-white">{p.name}</p><p className="truncate text-xs text-slate-500">{p.brand||p.garment_type||p.category||"Garment"}</p></div><span className="col-span-2 truncate text-sm text-slate-300">{p.sku}</span><span className="col-span-2 text-sm capitalize text-slate-300">{p.department}</span><span className="col-span-2 text-sm text-slate-300">{p.variant_count}</span><span className="col-span-2 flex items-center justify-end gap-2 text-sm font-semibold text-emerald-300">₹{Number(p.min_selling_price||0).toFixed(2)}<button onClick={()=>editProduct(p)} className="rounded border border-slate-700 px-2 py-1 text-xs text-slate-200">Edit</button><button onClick={()=>void toggleProductStatus(p)} className="rounded border border-slate-700 px-2 py-1 text-xs text-slate-400">{p.status==="archived"?"Restore":"Archive"}</button></span></div>)}
     </div>
   </section>;
 }
