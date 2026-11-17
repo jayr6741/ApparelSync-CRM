@@ -29,7 +29,9 @@ The 38-page GARMENTOS module specification is the product baseline. A module is 
 - [x] Purchase returns API + PostgreSQL migration: only received/unreturned quantities can be returned; sellable stock is decremented transactionally, stock movement/audit rows are written, and supplier ledger records the return as a credit.
 - [x] Supplier payment allocation against a selected purchase bill in the supplier UI; API validates the bill belongs to the supplier and rejects allocations above its outstanding balance.
 - [ ] Supplier credit notes and payment reconciliation.
-- [ ] Purchase receipt document/history with per-delivery audit lines; stock counts, reorder alerts and ageing.
+- [x] Purchase receipt documents for full/partial deliveries with item-level quantities, cost snapshots, notes, received-by and timestamp history (migration 010).
+- [x] Per-warehouse, per-variant reorder thresholds, target-stock suggestions and tenant-scoped low-stock alerts (migration 009).
+- [ ] Stock counts/cycle counts and stock ageing.
 - [ ] Product edit/archive, full variant matrix, images/storage, size charts, attributes, import/export.
 - [x] POS camera barcode scan, manual SKU/barcode lookup, Code 128 label preview and single-label print workflow.
 - [ ] Bulk barcode label generation and print-sheet layouts.
