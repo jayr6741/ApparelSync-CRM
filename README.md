@@ -1,60 +1,62 @@
 # GARMENTOS
 
-Garment retail management SaaS with separate web, mobile and API applications.
+Garment retail management SaaS with three independently managed applications.
 
-## Repository structure
+## Root structure
 
 ```text
 GARMENTOS/
 ├── frontend/   # Next.js web application
 ├── mobile/     # Expo / React Native application
-├── backend/    # Express REST API + PostgreSQL access
-├── database/   # PostgreSQL migrations and database documentation
-├── docs/       # Architecture, audit and development documentation
-├── packages/   # Shared packages
-└── package.json
+└── backend/    # Express API + PostgreSQL + migrations + project docs
 ```
 
-## Environment files
+GitHub's .github/ directory contains repository automation only; it is not an application.
 
-Each application has its own tracked example file. Copy it to a local, ignored environment file and set your own values:
+## Independent installation
 
-- Web: `frontend/.env.example` → `frontend/.env.local`
-- Mobile: `mobile/.env.example` → `mobile/.env`
-- API: `backend/.env.example` → `backend/.env`
+Install dependencies separately inside each application. There is no root npm workspace or root install.
 
-Never commit real `.env` files. PostgreSQL credentials and authentication secrets belong only in `backend/.env`. The frontend and mobile app must communicate with the API; they must never connect directly to PostgreSQL.
-
-## Install
-
-Use Node.js 20 or newer. From the repository root:
-
-```bash
+### Web frontend
+```powershell
+cd frontend
 npm install
+Copy-Item .env.example .env.local
+npm run dev
+```
+Web: http://localhost:3000
+
+### API backend
+```powershell
+cd backend
+npm install
+Copy-Item .env.example .env
+# Set DATABASE_URL and AUTH_SECRET in backend/.env
+npm run dev
+```
+API health: http://localhost:4000/api/health
+
+### Mobile app
+```powershell
+cd mobile
+npm install
+Copy-Item .env.example .env
+# Set EXPO_PUBLIC_API_URL to your computer LAN IP for a physical phone
+npm start
 ```
 
-## Run applications
+Run each app in a separate terminal. For a physical phone, do not use localhost as the API host; use the computer's LAN IP and ensure both devices are on the same network.
 
-```bash
-npm run dev:web
-npm run dev:api
-npm run dev:mobile
-```
+## PostgreSQL
 
-Run each command in a separate terminal. For a physical phone, set `EXPO_PUBLIC_API_URL` in `mobile/.env` to the computer's LAN IP or deployed HTTPS API URL, not localhost.
+All database material is under backend/database/. PostgreSQL credentials belong only in backend/.env. Frontend and mobile must call the backend API and must never connect directly to PostgreSQL.
 
-## Build and typecheck
+The clean PostgreSQL baseline is in backend/database/migrations/. Historical Supabase SQL is retained under backend/database/legacy-supabase/ as reference only; do not apply it to the self-hosted PostgreSQL database. Supabase CLI temporary metadata has been removed from the repository.
 
-```bash
-npm run build:web
-npm run build:api
-npm run typecheck:api
-```
+## Project documentation
 
-## Database
+Architecture, audit and migration documents are under backend/docs/.
 
-PostgreSQL schema and migrations are maintained in `database/migrations/`. Configure the database connection only in `backend/.env`.
+## Implementation status
 
-## Current implementation note
-
-The repository structure and independent environment templates are in place. This does not mean the legacy web screens have all been migrated from Supabase to the Express API yet; that migration must be completed and tested module by module before production use.
+This is a repository organization change, not a completed Supabase-to-PostgreSQL feature migration. Existing frontend Supabase integrations still need to be replaced with backend API calls and tested module by module. The API and mobile app remain starter implementations; do not treat them as production-ready yet.
