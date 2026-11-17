@@ -1,5 +1,6 @@
-# dependencies
+# dependencies (all workspaces)
 /node_modules
+**/node_modules/
 /.pnp
 .pnp.js
 
@@ -7,8 +8,11 @@
 /coverage
 /.nyc_output
 
-# next.js build output
+# Next.js / Expo / API build output
 /.next/
+**/.next/
+**/dist/
+**/.expo/
 /out/
 
 # production
