@@ -65,7 +65,7 @@ GARMENTOS development is in progress on the `garmentos-dev` branch.
 - The old Supabase client and Supabase-only integration tests have been removed from the updated web workflow. Historical SQL under `backend/database/legacy-supabase/` is archival reference only and is not part of runtime configuration.
 - The POS workflow includes live camera barcode scanning and manual SKU/barcode lookup; the legacy scanner route forwards staff to POS.
 - Loyalty calculations and reward-ledger writes use a tenant-scoped PostgreSQL endpoint with transactional balance updates.
-- Mobile includes login, variant catalogue, cash checkout, sales history and customer directory; it still needs returns, purchasing, stock workflows, persistent sessions and offline synchronization.
+- Mobile includes login, variant catalogue, cash checkout, sales history, customer directory, returns history, stock overview and purchase order list; it still needs purchase receiving/returns actions, persistent sessions and offline synchronization.
 - A clean dependency install, production builds, database migration run, automated test suite, end-to-end checks and security review are still required before production use.
 
 Do not treat this branch as production-ready until those checks have passed.
