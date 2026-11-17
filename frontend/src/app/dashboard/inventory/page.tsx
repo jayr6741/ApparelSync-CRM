@@ -6,6 +6,8 @@ import { apiRequest } from "@/lib/api";
 import { readSession } from "@/lib/auth";
 
 type Category = { id: string; name: string };
+type Warehouse = {id:string;name:string};
+type Transfer = {id:string;transfer_number:string;from_warehouse:string;to_warehouse:string;total_units:number;created_at:string;status:string};
 type Product = {
   id: string; name: string; sku: string; category: string | null;
   department: string; garment_type: string | null; brand: string | null;
@@ -20,6 +22,13 @@ export default function InventoryPage() {
   const [stockRows,setStockRows] = useState<StockRow[]>([]);
   const [variantOptions,setVariantOptions] = useState<VariantOption[]>([]);
   const [categories,setCategories] = useState<Category[]>([]);
+  const [warehouses,setWarehouses] = useState<Warehouse[]>([]);
+  const [transfers,setTransfers] = useState<Transfer[]>([]);
+  const [transferFrom,setTransferFrom] = useState("");
+  const [transferTo,setTransferTo] = useState("");
+  const [transferVariant,setTransferVariant] = useState("");
+  const [transferQty,setTransferQty] = useState("1");
+  const [transferNotes,setTransferNotes] = useState("");
   const [query,setQuery] = useState("");
   const [loading,setLoading] = useState(true);
   const [error,setError] = useState("");
@@ -46,16 +55,20 @@ export default function InventoryPage() {
     if (!session) return;
     setLoading(true); setError("");
     try {
-      const [p,c,s,v] = await Promise.all([
+      const [p,c,s,v,w,t] = await Promise.all([
         apiRequest<ApiList<Product>>("/products",{method:"GET"},session.token),
         apiRequest<ApiList<Category>>("/categories",{method:"GET"},session.token),
         apiRequest<ApiList<StockRow>>("/stock",{method:"GET"},session.token),
         apiRequest<ApiList<VariantOption>>("/variants",{method:"GET"},session.token),
+        apiRequest<ApiList<Warehouse>>("/warehouses",{method:"GET"},session.token),
+        apiRequest<ApiList<Transfer>>("/stock/transfers",{method:"GET"},session.token),
       ]);
-      setProducts(p.data); setCategories(c.data); setStockRows(s.data); setVariantOptions(v.data);
+      setProducts(p.data); setCategories(c.data); setStockRows(s.data); setVariantOptions(v.data); setWarehouses(w.data); setTransfers(t.data);
+      if(!transferFrom&&w.data.length>0)setTransferFrom(w.data[0].id);
+      if(!transferTo&&w.data.length>1)setTransferTo(w.data[1].id);
     } catch(e) { setError(e instanceof Error ? e.message : "Could not load inventory"); }
     finally { setLoading(false); }
-  },[]);
+  },[transferFrom,transferTo]);
   useEffect(()=>{ void load(); },[load]);
 
   async function adjustStock(event:FormEvent<HTMLFormElement>) {
@@ -66,6 +79,16 @@ export default function InventoryPage() {
       setAdjustVariant("");setAdjustQty("1");setAdjustReason("");await load();
     } catch(e) { setError(e instanceof Error?e.message:"Stock adjustment failed"); }
     finally { setSaving(false); }
+  }
+
+  async function submitTransfer(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();const session=readSession();if(!session)return;
+    setSaving(true);setError("");
+    try{
+      await apiRequest("/stock/transfers",{method:"POST",body:JSON.stringify({fromWarehouseId:transferFrom,toWarehouseId:transferTo,notes:transferNotes,items:[{variantId:transferVariant,quantity:Number(transferQty)}]})},session.token);
+      setTransferVariant("");setTransferQty("1");setTransferNotes("");await load();
+    }catch(e){setError(e instanceof Error?e.message:"Warehouse transfer failed");}
+    finally{setSaving(false);}
   }
 
   const filtered = useMemo(()=>products.filter(p =>
@@ -116,6 +139,17 @@ export default function InventoryPage() {
       <label className="text-sm text-slate-300">MRP (₹)<input type="number" min="0" step="0.01" value={mrp} onChange={e=>setMrp(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-white"/></label>
       <div className="md:col-span-3 flex justify-end gap-2"><button type="button" onClick={()=>setShowForm(false)} className="rounded-lg border border-slate-700 px-4 py-2 text-slate-300">Cancel</button><button disabled={saving} className="rounded-lg bg-emerald-400 px-5 py-2 font-semibold text-slate-950 disabled:opacity-60">{saving?"Saving...":"Save product"}</button></div>
     </form>}
+
+    <form onSubmit={submitTransfer} className="grid gap-3 rounded-2xl border border-slate-800 bg-[#111520] p-5 md:grid-cols-4">
+      <div className="md:col-span-4"><h2 className="font-semibold text-white">Inter-warehouse stock transfer</h2><p className="text-xs text-slate-500">Transfer sellable stock between your active warehouses. Both stock movements are recorded atomically.</p></div>
+      <label className="text-sm text-slate-300">From warehouse<select required value={transferFrom} onChange={e=>setTransferFrom(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-white"><option value="">Select source</option>{warehouses.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
+      <label className="text-sm text-slate-300">To warehouse<select required value={transferTo} onChange={e=>setTransferTo(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-white"><option value="">Select destination</option>{warehouses.filter(w=>w.id!==transferFrom).map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
+      <label className="text-sm text-slate-300">Variant<select required value={transferVariant} onChange={e=>setTransferVariant(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-white"><option value="">Select variant</option>{variantOptions.map(v=><option key={v.id} value={v.id}>{v.product_name} · {v.size}/{v.colour} · {v.sku}</option>)}</select></label>
+      <label className="text-sm text-slate-300">Quantity<input type="number" min="1" step="1" required value={transferQty} onChange={e=>setTransferQty(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-white"/></label>
+      <label className="text-sm text-slate-300 md:col-span-3">Notes (optional)<input value={transferNotes} onChange={e=>setTransferNotes(e.target.value)} placeholder="Reason / dispatch reference" className="mt-2 w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-white"/></label>
+      <div className="flex items-end"><button disabled={saving||!transferFrom||!transferTo||transferFrom===transferTo||!transferVariant||warehouses.length<2} className="w-full rounded-lg bg-emerald-400 px-4 py-3 font-semibold text-slate-950 disabled:opacity-50">Transfer stock</button></div>
+    </form>
+    <div className="overflow-hidden rounded-2xl border border-slate-800 bg-[#111520]"><div className="border-b border-slate-800 px-5 py-3 text-sm font-semibold text-white">Recent warehouse transfers</div>{transfers.length===0?<p className="p-5 text-sm text-slate-400">No warehouse transfers recorded.</p>:transfers.map(t=><div key={t.id} className="flex flex-wrap justify-between gap-3 border-b border-slate-800/70 px-5 py-3 text-sm last:border-0"><div><p className="font-semibold text-white">{t.transfer_number}</p><p className="text-xs text-slate-500">{t.from_warehouse} → {t.to_warehouse}</p></div><div className="text-right"><p className="text-emerald-300">{t.total_units} units</p><p className="text-xs text-slate-500">{new Date(t.created_at).toLocaleDateString("en-IN")}</p></div></div>)}</div>
 
     <form onSubmit={adjustStock} className="grid gap-3 rounded-2xl border border-slate-800 bg-[#111520] p-5 md:grid-cols-4">
       <div className="md:col-span-4"><h2 className="font-semibold text-white">Stock adjustment / opening balance</h2><p className="text-xs text-slate-500">Adjustments are recorded in the stock movement ledger.</p></div>
