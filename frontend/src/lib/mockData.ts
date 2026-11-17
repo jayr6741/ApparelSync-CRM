@@ -29,7 +29,7 @@ export interface Order {
   discountAmount?: number;
 }
 
-// Empty fallback initial lists (Live data is loaded dynamically from Supabase)
+// Empty fallback initial lists (Live data is loaded dynamically from the GARMENTOS API)
 export const kpiMetrics: KPIMetrics = {
   totalRevenue: {
     value: 0,
