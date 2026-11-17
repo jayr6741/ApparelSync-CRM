@@ -17,6 +17,7 @@ type Product = {
 type ApiList<T> = { data: T[] };
 type VariantOption = { id:string; product_name:string; sku:string; barcode:string|null; size:string; colour:string };
 type StockRow = { variant_id:string; product_name:string; sku:string; size:string; colour:string; warehouse_name:string; on_hand:number; reserved:number; damaged:number; available:number };
+type ReorderAlert = {id:string;warehouse_id:string;warehouse_name:string;variant_id:string;sku:string;size:string;colour:string;product_name:string;reorder_level:number;target_stock:number;on_hand:number;reserved:number;damaged:number;available:number;suggested_replenishment:number};
 
 export default function InventoryPage() {
   const [products,setProducts] = useState<Product[]>([]);
@@ -31,6 +32,11 @@ export default function InventoryPage() {
   const [transferQty,setTransferQty] = useState("1");
   const [transferNotes,setTransferNotes] = useState("");
   const [barcodeVariantId,setBarcodeVariantId] = useState("");
+  const [reorderAlerts,setReorderAlerts] = useState<ReorderAlert[]>([]);
+  const [reorderWarehouse,setReorderWarehouse] = useState("");
+  const [reorderVariant,setReorderVariant] = useState("");
+  const [reorderLevel,setReorderLevel] = useState("5");
+  const [targetStock,setTargetStock] = useState("20");
   const barcodePreviewRef=useRef<HTMLDivElement|null>(null);
   const [query,setQuery] = useState("");
   const [loading,setLoading] = useState(true);
@@ -58,17 +64,19 @@ export default function InventoryPage() {
     if (!session) return;
     setLoading(true); setError("");
     try {
-      const [p,c,s,v,w,t] = await Promise.all([
+      const [p,c,s,v,w,t,a] = await Promise.all([
         apiRequest<ApiList<Product>>("/products",{method:"GET"},session.token),
         apiRequest<ApiList<Category>>("/categories",{method:"GET"},session.token),
         apiRequest<ApiList<StockRow>>("/stock",{method:"GET"},session.token),
         apiRequest<ApiList<VariantOption>>("/variants",{method:"GET"},session.token),
         apiRequest<ApiList<Warehouse>>("/warehouses",{method:"GET"},session.token),
         apiRequest<ApiList<Transfer>>("/stock/transfers",{method:"GET"},session.token),
+        apiRequest<ApiList<ReorderAlert>>("/stock/reorder-alerts",{method:"GET"},session.token),
       ]);
-      setProducts(p.data); setCategories(c.data); setStockRows(s.data); setVariantOptions(v.data); setWarehouses(w.data); setTransfers(t.data);
+      setProducts(p.data); setCategories(c.data); setStockRows(s.data); setVariantOptions(v.data); setWarehouses(w.data); setTransfers(t.data); setReorderAlerts(a.data);
       setTransferFrom(current=>current||w.data[0]?.id||"");
       setTransferTo(current=>current||w.data[1]?.id||"");
+      setReorderWarehouse(current=>current||w.data[0]?.id||"");
     } catch(e) { setError(e instanceof Error ? e.message : "Could not load inventory"); }
     finally { setLoading(false); }
   },[]);
@@ -82,6 +90,16 @@ export default function InventoryPage() {
       setAdjustVariant("");setAdjustQty("1");setAdjustReason("");await load();
     } catch(e) { setError(e instanceof Error?e.message:"Stock adjustment failed"); }
     finally { setSaving(false); }
+  }
+
+  async function saveReorderLevel(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();const session=readSession();if(!session)return;
+    setSaving(true);setError("");
+    try{
+      await apiRequest("/stock/reorder-levels",{method:"PUT",body:JSON.stringify({warehouseId:reorderWarehouse,variantId:reorderVariant,reorderLevel:Number(reorderLevel),targetStock:Number(targetStock)})},session.token);
+      setReorderVariant("");await load();
+    }catch(e){setError(e instanceof Error?e.message:"Could not save reorder level");}
+    finally{setSaving(false);}
   }
 
   function printBarcodeLabel(){
@@ -172,6 +190,16 @@ export default function InventoryPage() {
     </form>
     <div className="grid gap-4 rounded-2xl border border-slate-800 bg-[#111520] p-5 md:grid-cols-[1fr_auto] md:items-center"><div><h2 className="font-semibold text-white">Barcode label</h2><p className="mt-1 text-xs text-slate-500">Preview and print a Code 128 label for a size-colour variant.</p><select value={barcodeVariantId} onChange={e=>setBarcodeVariantId(e.target.value)} className="mt-3 w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-white"><option value="">Select variant</option>{variantOptions.map(v=><option key={v.id} value={v.id}>{v.product_name} · {v.size}/{v.colour} · {v.sku}</option>)}</select></div><div className="flex flex-col items-center gap-2">{barcodeVariantId&&<div ref={barcodePreviewRef}><BarcodeView value={variantOptions.find(v=>v.id===barcodeVariantId)?.barcode||variantOptions.find(v=>v.id===barcodeVariantId)?.sku||""} height={55} width={1.6}/></div>}<button type="button" disabled={!barcodeVariantId} onClick={printBarcodeLabel} className="rounded-lg bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-50">Print label</button></div></div>
     <div className="overflow-hidden rounded-2xl border border-slate-800 bg-[#111520]"><div className="border-b border-slate-800 px-5 py-3 text-sm font-semibold text-white">Recent warehouse transfers</div>{transfers.length===0?<p className="p-5 text-sm text-slate-400">No warehouse transfers recorded.</p>:transfers.map(t=><div key={t.id} className="flex flex-wrap justify-between gap-3 border-b border-slate-800/70 px-5 py-3 text-sm last:border-0"><div><p className="font-semibold text-white">{t.transfer_number}</p><p className="text-xs text-slate-500">{t.from_warehouse} → {t.to_warehouse}</p></div><div className="text-right"><p className="text-emerald-300">{t.total_units} units</p><p className="text-xs text-slate-500">{new Date(t.created_at).toLocaleDateString("en-IN")}</p></div></div>)}</div>
+
+    <form onSubmit={saveReorderLevel} className="grid gap-3 rounded-2xl border border-slate-800 bg-[#111520] p-5 md:grid-cols-4">
+      <div className="md:col-span-4"><h2 className="font-semibold text-white">Low-stock alerts & reorder levels</h2><p className="text-xs text-slate-500">Set a minimum sellable quantity and desired replenishment target for each variant and warehouse.</p></div>
+      <label className="text-sm text-slate-300">Warehouse<select required value={reorderWarehouse} onChange={e=>setReorderWarehouse(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-white"><option value="">Select warehouse</option>{warehouses.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
+      <label className="text-sm text-slate-300">Variant<select required value={reorderVariant} onChange={e=>setReorderVariant(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-white"><option value="">Select variant</option>{variantOptions.map(v=><option key={v.id} value={v.id}>{v.product_name} · {v.size}/{v.colour} · {v.sku}</option>)}</select></label>
+      <label className="text-sm text-slate-300">Alert when available ≤<input type="number" min="0" required value={reorderLevel} onChange={e=>setReorderLevel(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-white"/></label>
+      <label className="text-sm text-slate-300">Target stock<input type="number" min="0" required value={targetStock} onChange={e=>setTargetStock(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-white"/></label>
+      <div className="md:col-span-4"><button disabled={saving||!reorderWarehouse||!reorderVariant||Number(targetStock)<Number(reorderLevel)} className="rounded-lg bg-emerald-400 px-4 py-3 font-semibold text-slate-950 disabled:opacity-50">Save reorder rule</button></div>
+    </form>
+    <div className="overflow-hidden rounded-2xl border border-slate-800 bg-[#111520]"><div className="flex items-center justify-between border-b border-slate-800 px-5 py-3"><span className="text-sm font-semibold text-white">Low-stock alerts</span><span className="rounded-full bg-amber-500/10 px-2 py-1 text-xs font-semibold text-amber-300">{reorderAlerts.length} alerts</span></div>{reorderAlerts.length===0?<p className="p-5 text-sm text-slate-400">No configured items are below their reorder levels.</p>:reorderAlerts.map(a=><div key={a.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/70 px-5 py-3 text-sm last:border-0"><div><p className="font-semibold text-white">{a.product_name} · {a.size}/{a.colour}</p><p className="text-xs text-slate-500">{a.sku} · {a.warehouse_name} · threshold {a.reorder_level}</p></div><div className="text-right"><p className="font-semibold text-amber-300">{a.available} available</p><p className="text-xs text-slate-400">Replenish {a.suggested_replenishment} units to target {a.target_stock}</p></div></div>)}</div>
 
     <form onSubmit={adjustStock} className="grid gap-3 rounded-2xl border border-slate-800 bg-[#111520] p-5 md:grid-cols-4">
       <div className="md:col-span-4"><h2 className="font-semibold text-white">Stock adjustment / opening balance</h2><p className="text-xs text-slate-500">Adjustments are recorded in the stock movement ledger.</p></div>
