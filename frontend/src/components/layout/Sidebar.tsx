@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { clearSession } from "@/lib/auth";
+import { clearSession, readSession } from "@/lib/auth";
+import { apiRequest } from "@/lib/api";
 import {
   LayoutDashboard,
   FileText,
@@ -43,9 +44,16 @@ export default function Sidebar() {
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const handleLogout = () => {
-    clearSession();
-    router.replace("/login");
+  const handleLogout = async () => {
+    const session = readSession();
+    try {
+      if (session) await apiRequest("/auth/logout", { method: "POST" }, session.token);
+    } catch {
+      // Always clear the local session even if the API is unreachable.
+    } finally {
+      clearSession();
+      router.replace("/login");
+    }
   };
 
   return (

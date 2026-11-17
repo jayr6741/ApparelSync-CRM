@@ -3,37 +3,37 @@
 The 38-page GARMENTOS module specification is the product baseline. A module is complete only after its screens, API, PostgreSQL schema, authorization, validation, audit trail and workflow tests exist.
 
 ## Delivered foundations and vertical slices
-- [x] Three independent app folders and environment examples.
-- [x] PostgreSQL pool and health endpoint.
-- [x] Web and mobile registration/login connected to API (mobile session is currently in-memory only).
-- [x] Web dashboard session gate and logout.
+- [x] Three independent app folders and separate environment examples.
+- [x] PostgreSQL migration runner for ordered SQL files.
+- [x] Web registration/login connected to API; password hashing, JWT and persisted revocable sessions.
 - [x] Registration provisions Main Branch, Main Warehouse, POS register and Retail price list (requires migrations 002+).
-- [x] Tenant-scoped garment categories/products/variants; web product list/create.
+- [x] Tenant-scoped garment categories/products/variants; web inventory list/create.
 - [x] Tenant-scoped customer API and web directory.
 - [x] Supplier API and web screen.
 - [x] Purchase order create/list/receive API and web workflow; stock ledger updated transactionally.
 - [x] POS transactional checkout API and web/mobile cash checkout foundation.
-- [x] Invoice sequence, idempotency key, payment ledger, stock check/decrement, tax snapshot and audit event.
-- [x] GitHub Actions CI configured for all three apps (first run not confirmed green).
+- [x] Invoice sequence, idempotency, payment ledger, stock validation/decrement, tax snapshot and audit event.
+- [x] Tenant-scoped sales overview reports and recent sales dashboard.
+- [x] GitHub Actions CI configured for backend, web and mobile; first workflow run has not appeared yet.
 
 ## Still pending
-- [ ] Mobile persistent secure session, offline cache, sync outbox and conflict resolution.
-- [ ] POS UPI/card/split tender UI, receipt print/share, cash drawer and barcode scanner integration.
+- [ ] POS UPI/card/split tender UI, receipt print/share and cash drawer integration.
 - [ ] Returns, refunds, exchanges, order reservation and fulfilment.
 - [ ] Purchase partial receipts, purchase returns, supplier payments and supplier ledger.
 - [ ] Opening stock, adjustments, stock counts, transfers, reorder and ageing.
 - [ ] Product edit/archive, full variant matrix, images/storage, size charts, attributes and import/export.
 - [ ] Barcode lookup/label printing.
-- [ ] Refresh-token/session revocation, email verification and password reset.
+- [ ] Email verification and password reset.
 - [ ] Tenant profile/onboarding, GSTIN and business settings.
 - [ ] Customer ledger, loyalty, segmentation and consent.
 - [ ] GST/HSN configuration, intra/inter-state tax snapshots and accountant-reviewed GST reports.
 - [ ] Double-entry accounting, cash/bank, expenses, receivables/payables and reconciliation.
 - [ ] Staff, permissions, branch scope and attendance.
-- [ ] Sales, margin, stock, customer, supplier and employee reports.
+- [ ] Detailed sales, margin, stock, customer, supplier and employee reports.
 - [ ] Online storefront/cart/checkout.
 - [ ] Notification centre and integrations.
 - [ ] SaaS plans, trials, entitlement enforcement and verified billing webhooks.
+- [ ] Mobile secure persistent session, offline cache, sync outbox and conflict resolution.
 - [ ] API/web/mobile E2E, tenant isolation, security/load tests, deployment, monitoring and backup/restore drill.
 
 ## Verification
