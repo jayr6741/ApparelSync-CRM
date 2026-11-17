@@ -59,4 +59,13 @@ Architecture, audit and migration documents are under backend/docs/.
 
 ## Implementation status
 
-This is a repository organization change, not a completed Supabase-to-PostgreSQL feature migration. Existing frontend Supabase integrations still need to be replaced with backend API calls and tested module by module. The API and mobile app remain starter implementations; do not treat them as production-ready yet.
+GARMENTOS development is in progress on the `garmentos-dev` branch.
+
+- The active dashboard, sales/invoice list, customer directory/search, inventory, purchasing, supplier ledger, POS checkout, returns and reports are being moved to the Express API backed by PostgreSQL.
+- The old Supabase client and Supabase-only integration tests have been removed from the updated web workflow. Historical SQL under `backend/database/legacy-supabase/` is archival reference only and is not part of runtime configuration.
+- The scanner route currently directs staff to the PostgreSQL POS workflow; a dedicated barcode-first POS flow still needs to be completed.
+- Loyalty calculations remain available, but reward-ledger writes are disabled until the PostgreSQL loyalty ledger endpoint is implemented.
+- Mobile is an initial login/catalog/checkout foundation and still needs the remaining operational screens.
+- A clean dependency install, production builds, database migration run, automated test suite, end-to-end checks and security review are still required before production use.
+
+Do not treat this branch as production-ready until those checks have passed.
