@@ -116,7 +116,7 @@ returnsRouter.post("/returns", async (req, res, next) => {
         );
         await client.query(
           `INSERT INTO stock_movements(shop_id,warehouse_id,variant_id,movement_type,quantity_delta,source_type,source_id,created_by)
-           VALUES($1,$2,$3,'return',$4,'sales_return',$5,$6)`,
+           VALUES($1,$2,$3,'sale_return',$4,'sales_return',$5,$6)`,
           [shopId, sale.rows[0].warehouse_id, line.variantId, line.quantity, created.rows[0].id, req.auth!.userId]
         );
       }
