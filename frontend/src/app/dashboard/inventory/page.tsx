@@ -64,11 +64,11 @@ export default function InventoryPage() {
         apiRequest<ApiList<Transfer>>("/stock/transfers",{method:"GET"},session.token),
       ]);
       setProducts(p.data); setCategories(c.data); setStockRows(s.data); setVariantOptions(v.data); setWarehouses(w.data); setTransfers(t.data);
-      if(!transferFrom&&w.data.length>0)setTransferFrom(w.data[0].id);
-      if(!transferTo&&w.data.length>1)setTransferTo(w.data[1].id);
+      setTransferFrom(current=>current||w.data[0]?.id||"");
+      setTransferTo(current=>current||w.data[1]?.id||"");
     } catch(e) { setError(e instanceof Error ? e.message : "Could not load inventory"); }
     finally { setLoading(false); }
-  },[transferFrom,transferTo]);
+  },[]);
   useEffect(()=>{ void load(); },[load]);
 
   async function adjustStock(event:FormEvent<HTMLFormElement>) {
