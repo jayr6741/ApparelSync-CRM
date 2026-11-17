@@ -32,7 +32,8 @@ The 38-page GARMENTOS module specification is the product baseline. A module is 
 - [x] Purchase receipt documents for full/partial deliveries with item-level quantities, cost snapshots, notes, received-by and timestamp history (migration 010).
 - [x] Per-warehouse, per-variant reorder thresholds, target-stock suggestions and tenant-scoped low-stock alerts (migration 009).
 - [ ] Stock counts/cycle counts and stock ageing.
-- [ ] Product edit/archive, full variant matrix, images/storage, size charts, attributes, import/export.
+- [x] Product details edit and archive/restore with tenant-scoped API and audit events.
+- [ ] Full variant matrix editing, images/storage, size charts, attributes, import/export.
 - [x] POS camera barcode scan, manual SKU/barcode lookup, Code 128 label preview and single-label print workflow.
 - [ ] Bulk barcode label generation and print-sheet layouts.
 - [ ] Email verification and password reset.
