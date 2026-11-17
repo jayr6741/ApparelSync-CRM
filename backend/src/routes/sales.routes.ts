@@ -60,7 +60,7 @@ salesRouter.post("/sales/checkout",async(req,res,next)=>{
   const method=p.data.payments.length===1?p.data.payments[0].method:"other";
   const sale=await c.query(`INSERT INTO sales(shop_id,customer_id,total,payment_method,status,subtotal,tax_total,discount_amount,invoice_number,branch_id,warehouse_id,idempotency_key,created_by) VALUES($1,$2,$3,$4,'completed',$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id,invoice_number,total,status,sale_date`,[shopId,customerId,total,method,subtotal,taxTotal,discount,invoice,warehouse.rows[0].branch_id,warehouse.rows[0].id,p.data.idempotencyKey,req.auth!.userId]);
   for(const line of lines){
-    const lineDiscount=discount*(line.base+line.tax)/gross;
+    const lineDiscount=gross>0?discount*(line.base+line.tax)/gross:0;
     const lineTotal=line.base+line.tax-lineDiscount;
     await c.query(`INSERT INTO sale_items(shop_id,sale_id,product_id,variant_id,product_name,quantity,unit_price,total_price,tax_rate,tax_amount,discount_amount) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,[shopId,sale.rows[0].id,line.variant.product_id,line.item.variantId,line.variant.name,line.item.quantity,line.unit,lineTotal,line.rate,line.tax,lineDiscount]);
     await c.query("UPDATE stock_balances SET on_hand=on_hand-$4,updated_at=now() WHERE shop_id=$1 AND warehouse_id=$2 AND variant_id=$3",[shopId,warehouse.rows[0].id,line.item.variantId,line.item.quantity]);
