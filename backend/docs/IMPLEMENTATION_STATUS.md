@@ -13,7 +13,7 @@ The 38-page GARMENTOS module specification is the product baseline. A module is 
 - [x] Purchase order create/list/detail API and web workflow; full and partial receipts update stock balances and movement ledger transactionally.
 - [x] Supplier ledger summary/entries API, payment recording endpoint and supplier web ledger/payment screen.
 - [x] POS transactional checkout API and web/mobile cash checkout foundation.
-- [x] Mobile sales history, tenant-scoped customer directory, returns history, stock overview and purchase order list tabs backed by the PostgreSQL API.
+- [x] Mobile sales history, tenant-scoped customer directory, returns history, stock overview, purchase list/detail and partial goods receiving backed by the PostgreSQL API.
 - [x] Invoice sequence, idempotency, payment ledger, stock validation/decrement, tax snapshot and audit event.
 - [x] Tenant-scoped sales overview reports and recent sales dashboard.
 - [x] Stock list, warehouse list and transactional opening/adjustment/damage quantity API with movement/audit records; web stock view and adjustment form.
