@@ -3,25 +3,26 @@
 The 38-page GARMENTOS module specification is the product baseline. A module is complete only after its screens, API, PostgreSQL schema, authorization, validation, audit trail and workflow tests exist.
 
 ## Delivered foundations and vertical slices
-- [x] Three independent app folders and separate environment examples.
+- [x] Three independent app folders and independent environment examples.
 - [x] PostgreSQL migration runner for ordered SQL files.
 - [x] Web registration/login connected to API; password hashing, JWT and persisted revocable sessions.
 - [x] Registration provisions Main Branch, Main Warehouse, POS register and Retail price list (requires migrations 002+).
 - [x] Tenant-scoped garment categories/products/variants; web inventory list/create.
 - [x] Tenant-scoped customer API and web directory.
 - [x] Supplier API and web screen.
-- [x] Purchase order create/list/receive API and web workflow; stock ledger updated transactionally.
+- [x] Purchase order create/list/receive API and web workflow; receipt updates stock balances and movement ledger transactionally.
 - [x] POS transactional checkout API and web/mobile cash checkout foundation.
 - [x] Invoice sequence, idempotency, payment ledger, stock validation/decrement, tax snapshot and audit event.
 - [x] Tenant-scoped sales overview reports and recent sales dashboard.
-- [x] GitHub Actions CI configured for backend, web and mobile; first workflow run has not appeared yet.
+- [x] Stock list, warehouse list and transactional opening/adjustment/damage quantity API with movement/audit records; web stock view and adjustment form.
+- [x] GitHub Actions CI configured for backend, web and mobile; first run not yet confirmed green.
 
 ## Still pending
 - [ ] POS UPI/card/split tender UI, receipt print/share and cash drawer integration.
 - [ ] Returns, refunds, exchanges, order reservation and fulfilment.
 - [ ] Purchase partial receipts, purchase returns, supplier payments and supplier ledger.
-- [ ] Opening stock, adjustments, stock counts, transfers, reorder and ageing.
-- [ ] Product edit/archive, full variant matrix, images/storage, size charts, attributes and import/export.
+- [ ] Stock counts, inter-warehouse transfers, reorder alerts and ageing.
+- [ ] Product edit/archive, full variant matrix, images/storage, size charts, attributes, import/export.
 - [ ] Barcode lookup/label printing.
 - [ ] Email verification and password reset.
 - [ ] Tenant profile/onboarding, GSTIN and business settings.

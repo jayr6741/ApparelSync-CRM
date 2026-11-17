@@ -12,9 +12,11 @@ type Product = {
   variant_count: number; min_selling_price: string | number; stock_quantity: number;
 };
 type ApiList<T> = { data: T[] };
+type StockRow = { variant_id:string; product_name:string; sku:string; size:string; colour:string; warehouse_name:string; on_hand:number; reserved:number; damaged:number; available:number };
 
 export default function InventoryPage() {
   const [products,setProducts] = useState<Product[]>([]);
+  const [stockRows,setStockRows] = useState<StockRow[]>([]);
   const [categories,setCategories] = useState<Category[]>([]);
   const [query,setQuery] = useState("");
   const [loading,setLoading] = useState(true);
@@ -33,21 +35,35 @@ export default function InventoryPage() {
   const [price,setPrice] = useState("");
   const [mrp,setMrp] = useState("");
   const [stock,setStock] = useState("0");
+  const [adjustVariant,setAdjustVariant] = useState("");
+  const [adjustQty,setAdjustQty] = useState("1");
+  const [adjustReason,setAdjustReason] = useState("");
 
   const load = useCallback(async () => {
     const session = readSession();
     if (!session) return;
     setLoading(true); setError("");
     try {
-      const [p,c] = await Promise.all([
+      const [p,c,s] = await Promise.all([
         apiRequest<ApiList<Product>>("/products",{method:"GET"},session.token),
         apiRequest<ApiList<Category>>("/categories",{method:"GET"},session.token),
+        apiRequest<ApiList<StockRow>>("/stock",{method:"GET"},session.token),
       ]);
-      setProducts(p.data); setCategories(c.data);
+      setProducts(p.data); setCategories(c.data); setStockRows(s.data);
     } catch(e) { setError(e instanceof Error ? e.message : "Could not load inventory"); }
     finally { setLoading(false); }
   },[]);
   useEffect(()=>{ void load(); },[load]);
+
+  async function adjustStock(event:FormEvent<HTMLFormElement>) {
+    event.preventDefault(); const session=readSession(); if(!session)return;
+    setSaving(true);setError("");
+    try {
+      await apiRequest("/stock/adjustments",{method:"POST",body:JSON.stringify({variantId:adjustVariant,quantityDelta:Number(adjustQty),reason:adjustReason,movementType:"adjustment"})},session.token);
+      setAdjustVariant("");setAdjustQty("1");setAdjustReason("");await load();
+    } catch(e) { setError(e instanceof Error?e.message:"Stock adjustment failed"); }
+    finally { setSaving(false); }
+  }
 
   const filtered = useMemo(()=>products.filter(p =>
     [p.name,p.sku,p.brand ?? "",p.category ?? ""].join(" ").toLowerCase().includes(query.toLowerCase())
@@ -97,6 +113,15 @@ export default function InventoryPage() {
       <label className="text-sm text-slate-300">MRP (₹)<input type="number" min="0" step="0.01" value={mrp} onChange={e=>setMrp(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-white"/></label>
       <div className="md:col-span-3 flex justify-end gap-2"><button type="button" onClick={()=>setShowForm(false)} className="rounded-lg border border-slate-700 px-4 py-2 text-slate-300">Cancel</button><button disabled={saving} className="rounded-lg bg-emerald-400 px-5 py-2 font-semibold text-slate-950 disabled:opacity-60">{saving?"Saving...":"Save product"}</button></div>
     </form>}
+
+    <form onSubmit={adjustStock} className="grid gap-3 rounded-2xl border border-slate-800 bg-[#111520] p-5 md:grid-cols-4">
+      <div className="md:col-span-4"><h2 className="font-semibold text-white">Stock adjustment / opening balance</h2><p className="text-xs text-slate-500">Adjustments are recorded in the stock movement ledger.</p></div>
+      <label className="text-sm text-slate-300">Variant<select required value={adjustVariant} onChange={e=>setAdjustVariant(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-white"><option value="">Select variant</option>{stockRows.map((v,i)=><option key={v.variant_id+i} value={v.variant_id}>{v.product_name} · {v.size}/{v.colour} · {v.sku}</option>)}</select></label>
+      <label className="text-sm text-slate-300">Quantity change (+/-)<input type="number" step="1" required value={adjustQty} onChange={e=>setAdjustQty(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-white"/></label>
+      <label className="text-sm text-slate-300">Reason<input required minLength={3} value={adjustReason} onChange={e=>setAdjustReason(e.target.value)} placeholder="Opening count / correction / damage" className="mt-2 w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-white"/></label>
+      <div className="flex items-end"><button disabled={saving||!adjustVariant} className="w-full rounded-lg bg-emerald-400 px-4 py-3 font-semibold text-slate-950 disabled:opacity-50">Save adjustment</button></div>
+    </form>
+    <div className="overflow-hidden rounded-2xl border border-slate-800 bg-[#111520]"><div className="border-b border-slate-800 px-5 py-3 text-sm font-semibold text-white">Stock by size and colour</div>{stockRows.length===0?<p className="p-5 text-sm text-slate-400">No stock recorded. Receive a purchase or enter an opening stock adjustment.</p>:stockRows.map((v,i)=><div key={v.variant_id+i} className="grid grid-cols-12 gap-2 border-b border-slate-800/70 px-5 py-3 text-sm last:border-0"><span className="col-span-5 text-white">{v.product_name} · {v.size}/{v.colour}</span><span className="col-span-2 text-slate-400">{v.sku}</span><span className="col-span-2 text-slate-400">{v.warehouse_name}</span><span className="col-span-1 text-right text-white">{v.on_hand}</span><span className="col-span-2 text-right font-semibold text-emerald-300">{v.available} avail.</span></div>)}</div>
 
     <div className="flex flex-wrap items-center gap-3"><div className="relative min-w-[240px] flex-1"><Search className="absolute left-3 top-3.5 text-slate-500" size={17}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search product, SKU, brand..." className="w-full rounded-xl border border-slate-800 bg-[#111520] py-3 pl-10 pr-4 text-sm text-white"/></div><button onClick={()=>void load()} className="rounded-xl border border-slate-700 p-3 text-slate-300" aria-label="Refresh inventory"><RefreshCw size={17}/></button></div>
     <div className="overflow-hidden rounded-2xl border border-slate-800 bg-[#111520]">
