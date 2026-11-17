@@ -1,8 +1,9 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { Plus, Search, RefreshCw, Shirt, Layers3 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
+import BarcodeView from "@/components/inventory/BarcodeView";
 import { readSession } from "@/lib/auth";
 
 type Category = { id: string; name: string };
@@ -14,7 +15,7 @@ type Product = {
   variant_count: number; min_selling_price: string | number; stock_quantity: number;
 };
 type ApiList<T> = { data: T[] };
-type VariantOption = { id:string; product_name:string; sku:string; size:string; colour:string };
+type VariantOption = { id:string; product_name:string; sku:string; barcode:string|null; size:string; colour:string };
 type StockRow = { variant_id:string; product_name:string; sku:string; size:string; colour:string; warehouse_name:string; on_hand:number; reserved:number; damaged:number; available:number };
 
 export default function InventoryPage() {
@@ -29,6 +30,8 @@ export default function InventoryPage() {
   const [transferVariant,setTransferVariant] = useState("");
   const [transferQty,setTransferQty] = useState("1");
   const [transferNotes,setTransferNotes] = useState("");
+  const [barcodeVariantId,setBarcodeVariantId] = useState("");
+  const barcodePreviewRef=useRef<HTMLDivElement|null>(null);
   const [query,setQuery] = useState("");
   const [loading,setLoading] = useState(true);
   const [error,setError] = useState("");
@@ -79,6 +82,24 @@ export default function InventoryPage() {
       setAdjustVariant("");setAdjustQty("1");setAdjustReason("");await load();
     } catch(e) { setError(e instanceof Error?e.message:"Stock adjustment failed"); }
     finally { setSaving(false); }
+  }
+
+  function printBarcodeLabel(){
+    const selected=variantOptions.find(v=>v.id===barcodeVariantId);
+    const svg=barcodePreviewRef.current?.querySelector("svg")?.outerHTML;
+    if(!selected||!svg){setError("Select a variant with a valid SKU or barcode first.");return;}
+    const popup=window.open("","_blank","width=420,height=320");
+    if(!popup){setError("Print window blocked. Allow pop-ups and try again.");return;}
+    popup.document.title="Barcode label";
+    const style=popup.document.createElement("style");
+    style.textContent="body{font-family:Arial,sans-serif;text-align:center;padding:18px;color:#111}.label{width:320px;margin:0 auto;padding:14px;border:1px solid #ddd}h2{font-size:15px;margin:0 0 5px}.meta{font-size:11px;color:#444;margin:4px 0}svg{max-width:100%}@media print{body{padding:0}.label{border:0}}";
+    const label=popup.document.createElement("div");label.className="label";
+    const heading=popup.document.createElement("h2");heading.textContent=selected.product_name;
+    const meta=popup.document.createElement("p");meta.className="meta";meta.textContent=selected.size+" / "+selected.colour+" · "+selected.sku;
+    label.append(heading,meta);
+    const barcode=popup.document.createElement("div");barcode.innerHTML=svg;label.append(barcode);
+    popup.document.head.append(style);popup.document.body.append(label);
+    popup.onload=()=>popup.print();popup.document.close();
   }
 
   async function submitTransfer(event:FormEvent<HTMLFormElement>){
@@ -149,6 +170,7 @@ export default function InventoryPage() {
       <label className="text-sm text-slate-300 md:col-span-3">Notes (optional)<input value={transferNotes} onChange={e=>setTransferNotes(e.target.value)} placeholder="Reason / dispatch reference" className="mt-2 w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-white"/></label>
       <div className="flex items-end"><button disabled={saving||!transferFrom||!transferTo||transferFrom===transferTo||!transferVariant||warehouses.length<2} className="w-full rounded-lg bg-emerald-400 px-4 py-3 font-semibold text-slate-950 disabled:opacity-50">Transfer stock</button></div>
     </form>
+    <div className="grid gap-4 rounded-2xl border border-slate-800 bg-[#111520] p-5 md:grid-cols-[1fr_auto] md:items-center"><div><h2 className="font-semibold text-white">Barcode label</h2><p className="mt-1 text-xs text-slate-500">Preview and print a Code 128 label for a size-colour variant.</p><select value={barcodeVariantId} onChange={e=>setBarcodeVariantId(e.target.value)} className="mt-3 w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-white"><option value="">Select variant</option>{variantOptions.map(v=><option key={v.id} value={v.id}>{v.product_name} · {v.size}/{v.colour} · {v.sku}</option>)}</select></div><div className="flex flex-col items-center gap-2">{barcodeVariantId&&<div ref={barcodePreviewRef}><BarcodeView value={variantOptions.find(v=>v.id===barcodeVariantId)?.barcode||variantOptions.find(v=>v.id===barcodeVariantId)?.sku||""} height={55} width={1.6}/></div>}<button type="button" disabled={!barcodeVariantId} onClick={printBarcodeLabel} className="rounded-lg bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-50">Print label</button></div></div>
     <div className="overflow-hidden rounded-2xl border border-slate-800 bg-[#111520]"><div className="border-b border-slate-800 px-5 py-3 text-sm font-semibold text-white">Recent warehouse transfers</div>{transfers.length===0?<p className="p-5 text-sm text-slate-400">No warehouse transfers recorded.</p>:transfers.map(t=><div key={t.id} className="flex flex-wrap justify-between gap-3 border-b border-slate-800/70 px-5 py-3 text-sm last:border-0"><div><p className="font-semibold text-white">{t.transfer_number}</p><p className="text-xs text-slate-500">{t.from_warehouse} → {t.to_warehouse}</p></div><div className="text-right"><p className="text-emerald-300">{t.total_units} units</p><p className="text-xs text-slate-500">{new Date(t.created_at).toLocaleDateString("en-IN")}</p></div></div>)}</div>
 
     <form onSubmit={adjustStock} className="grid gap-3 rounded-2xl border border-slate-800 bg-[#111520] p-5 md:grid-cols-4">
