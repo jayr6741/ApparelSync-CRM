@@ -19,7 +19,8 @@ The 38-page GARMENTOS module specification is the product baseline. A module is 
 - [x] GitHub Actions CI configured for backend, web and mobile; first run not yet confirmed green.
 
 ## Still pending
-- [ ] POS UPI/card/split tender UI, receipt print/share and cash drawer integration.
+- [x] POS UI: cash/UPI/card/bank transfer/wallet/gift-card/other tenders, split payment rows, amount balancing and optional transaction references; basic browser receipt print added.
+- [ ] Receipt with full line-item/tax/payment breakdown, receipt share, cash drawer integration and payment-provider settlement.
 - [x] Web returns/refunds workflow: select invoice, fetch sale lines, enter partial quantities, choose refund method, optional restock, view return history.
 - [ ] Mobile returns screen, exchange workflow, purchase returns and return authorization.
 - [ ] Purchase partial receipts, purchase returns, supplier payments and supplier ledger.
