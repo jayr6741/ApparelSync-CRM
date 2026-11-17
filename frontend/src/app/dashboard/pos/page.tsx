@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback,useEffect,useMemo,useState } from "react";
-import { Search,ShoppingCart,Trash2,Receipt,CheckCircle2,Plus,Wallet,Printer } from "lucide-react";
+import { Search,ShoppingCart,Trash2,Receipt,CheckCircle2,Plus,Wallet,Printer,ScanBarcode } from "lucide-react";
+import ScannerCamera from "@/components/scanner/ScannerCamera";
 import { apiRequest } from "@/lib/api";
 import { readSession } from "@/lib/auth";
 
@@ -22,6 +23,8 @@ export default function PosPage(){
  const [checkout,setCheckout]=useState(false);
  const [error,setError]=useState("");
  const [receipt,setReceipt]=useState<SaleResult["data"]|null>(null);
+ const [scannerVisible,setScannerVisible]=useState(false);
+ const [scannerActive,setScannerActive]=useState(false);
  const [tenders,setTenders]=useState<Tender[]>([emptyTender()]);
  const load=useCallback(async()=>{const s=readSession();if(!s)return;setLoading(true);try{const r=await apiRequest<List<Variant>>("/variants",{method:"GET"},s.token);setVariants(r.data);}catch(e){setError(e instanceof Error?e.message:"Unable to load sellable variants");}finally{setLoading(false);}},[]);
  useEffect(()=>{void load();},[load]);
@@ -49,7 +52,8 @@ export default function PosPage(){
  }
  function printReceipt(){if(!receipt)return;const w=window.open("","_blank","width=420,height=650");if(!w){setError("Receipt print window blocked. Browser pop-ups allow karein.");return;}w.document.write(`<!doctype html><html><head><title>${receipt.invoice_number}</title><style>body{font:14px Arial;padding:24px;color:#111}h1{font-size:20px}hr{border:0;border-top:1px dashed #777;margin:18px 0}.total{font-size:20px;font-weight:bold}</style></head><body><h1>GARMENTOS</h1><p>Sales receipt</p><hr><p>Invoice: ${receipt.invoice_number}</p><p>Status: ${receipt.status}</p><hr><p class="total">Total: ₹${Number(receipt.total).toFixed(2)}</p><hr><p>Thank you for shopping!</p><script>window.onload=()=>window.print()<\/script></body></html>`);w.document.close();}
  return <section className="space-y-6">
-  <header><p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">Point of sale</p><h1 className="mt-2 text-3xl font-bold text-white">POS Billing</h1><p className="mt-1 text-sm text-slate-400">Search garment variants, build a cart and accept cash, UPI, card or split payments.</p></header>
+  <header className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">Point of sale</p><h1 className="mt-2 text-3xl font-bold text-white">POS Billing</h1><p className="mt-1 text-sm text-slate-400">Search or scan garment variants, build a cart and accept cash, UPI, card or split payments.</p></div><button onClick={()=>{setScannerVisible(v=>!v);if(scannerVisible)setScannerActive(false);}} className="flex items-center gap-2 rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200"><ScanBarcode size={17}/>{scannerVisible?"Hide scanner":"Scan barcode"}</button></header>
+  {scannerVisible&&<ScannerCamera isActive={scannerActive} onToggleActive={()=>setScannerActive(v=>!v)} onScanSuccess={(code)=>{setQuery(code);const found=variants.find(v=>v.barcode?.toLowerCase()===code.toLowerCase()||v.sku.toLowerCase()===code.toLowerCase());if(found){add(found);setError("");}else{setError("No sellable variant found for barcode: "+code);}}} onScanError={setError}/>}
   {error&&<p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</p>}
   {receipt&&<div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4"><div className="flex items-center gap-3 text-emerald-300"><CheckCircle2/><div><p className="font-semibold">Sale completed</p><p className="text-xs">{receipt.invoice_number} · ₹{Number(receipt.total).toFixed(2)}</p></div></div><div className="flex gap-3"><button onClick={printReceipt} className="flex items-center gap-2 text-sm text-emerald-200 underline"><Printer size={15}/>Print receipt</button><button onClick={()=>setReceipt(null)} className="text-sm text-emerald-200 underline">Dismiss</button></div></div>}
   <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
