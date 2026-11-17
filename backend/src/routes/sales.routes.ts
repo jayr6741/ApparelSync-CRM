@@ -13,6 +13,18 @@ const checkoutSchema=z.object({
   payments:z.array(z.object({method:z.enum(["cash","upi","card","bank_transfer","wallet","gift_card","other"]),amount:z.number().positive(),referenceNumber:z.string().max(120).optional()})).min(1).max(10)
 });
 salesRouter.get("/sales",async(req,res,next)=>{try{const r=await pool.query("SELECT id,invoice_number,total,subtotal,tax_total,discount_amount,payment_method,status,sale_date FROM sales WHERE shop_id=$1 ORDER BY sale_date DESC LIMIT 200",[req.auth!.shopId]);return res.json({data:r.rows});}catch(e){return next(e);}});
+
+salesRouter.get("/sales/:saleId",async(req,res,next)=>{
+ try{
+  const sale=await pool.query("SELECT id,invoice_number,total,status,sale_date FROM sales WHERE id=$1 AND shop_id=$2",[req.params.saleId,req.auth!.shopId]);
+  if(!sale.rowCount)return res.status(404).json({error:"Sale not found"});
+  const items=await pool.query("SELECT id,product_name,variant_id,quantity,unit_price,total_price FROM sale_items WHERE shop_id=$1 AND sale_id=$2 ORDER BY id",[req.auth!.shopId,req.params.saleId]);
+  const returned=await pool.query("SELECT ri.sale_item_id,COALESCE(SUM(ri.quantity),0)::int AS returned_quantity FROM sales_return_items ri JOIN sales_returns r ON r.id=ri.return_id AND r.shop_id=ri.shop_id WHERE ri.shop_id=$1 AND r.sale_id=$2 AND r.status='completed' GROUP BY ri.sale_item_id",[req.auth!.shopId,req.params.saleId]);
+  const returnedMap=new Map(returned.rows.map((x:any)=>[x.sale_item_id,Number(x.returned_quantity)]));
+  return res.json({data:{...sale.rows[0],items:items.rows.map((x:any)=>({...x,returned_quantity:returnedMap.get(x.id)??0,returnable_quantity:Number(x.quantity)-(returnedMap.get(x.id)??0)}))}});
+ }catch(e){return next(e);}
+});
+
 salesRouter.post("/sales/checkout",async(req,res,next)=>{
  const p=checkoutSchema.safeParse(req.body);if(!p.success)return res.status(400).json({error:"Invalid checkout",details:p.error.flatten()});
  const c=await pool.connect();
