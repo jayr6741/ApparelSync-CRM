@@ -7,6 +7,7 @@ type Variant={id:string;sku:string;size:string;colour:string;selling_price:strin
 type CartLine={variant:Variant;quantity:number};
 type Sale={id:string;invoice_number:string|null;total:string|number;status:string;sale_date:string;payment_method:string};
 type Customer={id:string;full_name:string;phone:string|null;email:string|null;reward_points:number;tier:string};
+type ReturnRecord={id:string;return_number:string;sale_id:string;invoice_number:string|null;status:string;reason:string;refund_total:string|number;refund_method:string;created_at:string};
 type Session={token:string;user:{fullName?:string;email:string};shop:{name:string}};
 type ApiList<T>={data:T[]};
 
@@ -22,12 +23,13 @@ export default function App(){
  const [fullName,setFullName]=useState(""),[shopName,setShopName]=useState(""),[email,setEmail]=useState(""),[password,setPassword]=useState("");
  const [session,setSession]=useState<Session|null>(null),[variants,setVariants]=useState<Variant[]>([]),[cart,setCart]=useState<CartLine[]>([]);
  const [query,setQuery]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState(""),[lastInvoice,setLastInvoice]=useState("");
- const [activeTab,setActiveTab]=useState<"pos"|"sales"|"customers">("pos");
- const [sales,setSales]=useState<Sale[]>([]),[customers,setCustomers]=useState<Customer[]>([]);
+ const [activeTab,setActiveTab]=useState<"pos"|"sales"|"customers"|"returns">("pos");
+ const [sales,setSales]=useState<Sale[]>([]),[customers,setCustomers]=useState<Customer[]>([]),[returns,setReturns]=useState<ReturnRecord[]>([]);
  const loadVariants=useCallback(async(token:string)=>{const result=await api<ApiList<Variant>>("/variants",token);setVariants(result.data);},[]);
  const loadSales=useCallback(async(token:string)=>{const result=await api<ApiList<Sale>>("/sales",token);setSales(result.data);},[]);
  const loadCustomers=useCallback(async(token:string)=>{const result=await api<ApiList<Customer>>("/customers",token);setCustomers(result.data);},[]);
- useEffect(()=>{if(session)Promise.all([loadVariants(session.token),loadSales(session.token),loadCustomers(session.token)]).catch(e=>setError(e.message));},[session,loadVariants,loadSales,loadCustomers]);
+ const loadReturns=useCallback(async(token:string)=>{const result=await api<ApiList<ReturnRecord>>("/returns",token);setReturns(result.data);},[]);
+ useEffect(()=>{if(session)Promise.all([loadVariants(session.token),loadSales(session.token),loadCustomers(session.token),loadReturns(session.token)]).catch(e=>setError(e.message));},[session,loadVariants,loadSales,loadCustomers,loadReturns]);
  const filtered=useMemo(()=>variants.filter(v=>[v.product_name,v.sku,v.barcode??"",v.size,v.colour].join(" ").toLowerCase().includes(query.toLowerCase())),[variants,query]);
  const total=cart.reduce((sum,line)=>sum+Number(line.variant.selling_price)*line.quantity*(1+Number(line.variant.tax_rate)/100),0);
  async function authenticate(){
@@ -57,8 +59,8 @@ export default function App(){
   <Pressable onPress={()=>{setMode(mode==="login"?"register":"login");setError("");}}><Text style={styles.switch}>{mode==="login"?"New shop? Create an account":"Already registered? Sign in"}</Text></Pressable>
  </ScrollView></KeyboardAvoidingView></SafeAreaView>;
 
- return <SafeAreaView style={styles.safe}><StatusBar style="light"/><View style={styles.top}><View><Text style={styles.brandSmall}>GARMENTOS MOBILE</Text><Text style={styles.shopTitle}>{session.shop.name}</Text></View><Pressable onPress={()=>{setSession(null);setCart([]);setLastInvoice("");setSales([]);setCustomers([]);}}><Text style={styles.logout}>Logout</Text></Pressable></View>
- <View style={styles.tabs}>{([{id:"pos",label:"POS"},{id:"sales",label:"Sales"},{id:"customers",label:"Customers"}] as const).map(tab=><Pressable key={tab.id} onPress={()=>setActiveTab(tab.id)} style={[styles.tab,activeTab===tab.id&&styles.tabSelected]}><Text style={[styles.tabText,activeTab===tab.id&&styles.tabTextSelected]}>{tab.label}</Text></Pressable>)}</View>
+ return <SafeAreaView style={styles.safe}><StatusBar style="light"/><View style={styles.top}><View><Text style={styles.brandSmall}>GARMENTOS MOBILE</Text><Text style={styles.shopTitle}>{session.shop.name}</Text></View><Pressable onPress={()=>{setSession(null);setCart([]);setLastInvoice("");setSales([]);setCustomers([]);setReturns([]);}}><Text style={styles.logout}>Logout</Text></Pressable></View>
+ <View style={styles.tabs}>{([{id:"pos",label:"POS"},{id:"sales",label:"Sales"},{id:"customers",label:"Customers"},{id:"returns",label:"Returns"}] as const).map(tab=><Pressable key={tab.id} onPress={()=>setActiveTab(tab.id)} style={[styles.tab,activeTab===tab.id&&styles.tabSelected]}><Text style={[styles.tabText,activeTab===tab.id&&styles.tabTextSelected]}>{tab.label}</Text></Pressable>)}</View>
  {!!error&&<Text style={styles.error}>{error}</Text>}
  {activeTab==="pos"&&<>
   <View style={styles.searchWrap}><TextInput value={query} onChangeText={setQuery} placeholder="Search product, SKU, size, colour..." placeholderTextColor="#758096" style={styles.search}/></View>
@@ -68,6 +70,7 @@ export default function App(){
  </>}
  {activeTab==="sales"&&<FlatList data={sales} keyExtractor={x=>x.id} contentContainerStyle={styles.list} ListEmptyComponent={<Text style={styles.muted}>No sales recorded yet.</Text>} renderItem={({item})=><View style={styles.dataCard}><View style={{flex:1}}><Text style={styles.productName}>{item.invoice_number||"Sales invoice"}</Text><Text style={styles.muted}>{new Date(item.sale_date).toLocaleDateString("en-IN")} · {item.payment_method}</Text></View><View><Text style={styles.price}>₹{Number(item.total).toFixed(2)}</Text><Text style={styles.stock}>{item.status}</Text></View></View>}/>}
  {activeTab==="customers"&&<FlatList data={customers} keyExtractor={x=>x.id} contentContainerStyle={styles.list} ListEmptyComponent={<Text style={styles.muted}>No customers registered yet.</Text>} renderItem={({item})=><View style={styles.dataCard}><View style={{flex:1}}><Text style={styles.productName}>{item.full_name}</Text><Text style={styles.muted}>{item.phone||item.email||"No contact details"}</Text></View><View><Text style={styles.price}>{item.reward_points||0} pts</Text><Text style={styles.stock}>{item.tier||"Bronze"}</Text></View></View>}/>}
+ {activeTab==="returns"&&<FlatList data={returns} keyExtractor={x=>x.id} contentContainerStyle={styles.list} ListEmptyComponent={<Text style={styles.muted}>No returns recorded yet. Create returns from the web returns workspace.</Text>} renderItem={({item})=><View style={styles.dataCard}><View style={{flex:1}}><Text style={styles.productName}>{item.return_number}</Text><Text style={styles.muted}>{item.invoice_number||"Invoice"} · {item.reason}</Text><Text style={styles.stock}>{new Date(item.created_at).toLocaleDateString("en-IN")} · {item.refund_method}</Text></View><View><Text style={styles.price}>₹{Number(item.refund_total).toFixed(2)}</Text><Text style={styles.stock}>{item.status}</Text></View></View>}/>}
  </SafeAreaView>;
 }
 
