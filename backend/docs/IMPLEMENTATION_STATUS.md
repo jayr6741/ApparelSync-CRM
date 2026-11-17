@@ -20,7 +20,8 @@ The 38-page GARMENTOS module specification is the product baseline. A module is 
 
 ## Still pending
 - [ ] POS UPI/card/split tender UI, receipt print/share and cash drawer integration.
-- [ ] Returns/refunds web and mobile screens, exchange workflow, purchase returns and return authorization.
+- [x] Web returns/refunds workflow: select invoice, fetch sale lines, enter partial quantities, choose refund method, optional restock, view return history.
+- [ ] Mobile returns screen, exchange workflow, purchase returns and return authorization.
 - [ ] Purchase partial receipts, purchase returns, supplier payments and supplier ledger.
 - [ ] Stock counts, inter-warehouse transfers, reorder alerts and ageing.
 - [ ] Product edit/archive, full variant matrix, images/storage, size charts, attributes, import/export.
