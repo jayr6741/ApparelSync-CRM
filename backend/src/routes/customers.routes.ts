@@ -28,6 +28,19 @@ customersRouter.get("/customers", async (req,res,next)=>{
   } catch(error){return next(error);}
 });
 
+
+customersRouter.get("/customers/:customerId/ledger",async(req,res,next)=>{try{
+ const shopId=req.auth!.shopId;
+ const customer=await pool.query("SELECT id,full_name,email,phone,reward_points,tier,created_at FROM customers WHERE id=$1 AND shop_id=$2",[req.params.customerId,shopId]);
+ if(!customer.rowCount)return res.status(404).json({error:"Customer not found"});
+ const [sales,points,summary]=await Promise.all([
+  pool.query("SELECT id,invoice_number,total,status,sale_date FROM sales WHERE shop_id=$1 AND customer_id=$2 ORDER BY sale_date DESC LIMIT 100",[shopId,req.params.customerId]),
+  pool.query("SELECT id,order_id,points_change,type,description,created_at FROM point_transactions WHERE shop_id=$1 AND customer_id=$2 ORDER BY created_at DESC LIMIT 200",[shopId,req.params.customerId]),
+  pool.query("SELECT count(*)::int AS sale_count,COALESCE(sum(total),0)::numeric(14,2) AS lifetime_spend,COALESCE(avg(total),0)::numeric(14,2) AS average_order FROM sales WHERE shop_id=$1 AND customer_id=$2 AND status='completed'",[shopId,req.params.customerId])
+ ]);
+ return res.json({data:{customer:customer.rows[0],summary:summary.rows[0],sales:sales.rows,points:points.rows}});
+}catch(error){return next(error);}});
+
 customersRouter.post("/customers", async(req,res,next)=>{
   const parsed=customerSchema.safeParse(req.body);
   if(!parsed.success) return res.status(400).json({error:"Invalid customer details",details:parsed.error.flatten()});
