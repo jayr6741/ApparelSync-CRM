@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { pool } from "../db/pool";
 import { requireAuth } from "../middleware/auth";
@@ -93,7 +94,7 @@ returnsRouter.post("/returns", async (req, res, next) => {
       lines.push({ saleItemId: item.saleItemId, variantId: line.rows[0].variant_id, quantity: item.quantity, refund: amount, restock: item.restock });
     }
 
-    const returnNumber = `RET-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+    const returnNumber = `RET-${new Date().toISOString().slice(0,10).replace(/-/g,"")}-${randomUUID().slice(0,8).toUpperCase()}`;
     const created = await client.query(
       `INSERT INTO sales_returns(shop_id,sale_id,return_number,status,reason,refund_total,refund_method,idempotency_key,created_by)
        VALUES($1,$2,$3,'completed',$4,$5,$6,$7,$8)
