@@ -10,6 +10,7 @@ type Customer={id:string;full_name:string;phone:string|null;email:string|null;re
 type ReturnRecord={id:string;return_number:string;sale_id:string;invoice_number:string|null;status:string;reason:string;refund_total:string|number;refund_method:string;created_at:string};
 type StockRow={variant_id:string;product_name:string;sku:string;size:string;colour:string;warehouse_name:string;on_hand:number;available:number};
 type Purchase={id:string;purchase_number:string;status:string;grand_total:string|number;created_at:string;supplier_name:string};
+type PurchaseDetail={id:string;purchase_number:string;status:string;items:{id:string;variant_id:string;quantity_ordered:number;quantity_received:number;unit_cost:string|number;product_name:string;size:string;colour:string;sku:string}[]};
 type Session={token:string;user:{fullName?:string;email:string};shop:{name:string}};
 type ApiList<T>={data:T[]};
 
@@ -27,6 +28,7 @@ export default function App(){
  const [query,setQuery]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState(""),[lastInvoice,setLastInvoice]=useState("");
  const [activeTab,setActiveTab]=useState<"pos"|"sales"|"customers"|"returns"|"stock"|"purchases">("pos");
  const [sales,setSales]=useState<Sale[]>([]),[customers,setCustomers]=useState<Customer[]>([]),[returns,setReturns]=useState<ReturnRecord[]>([]),[stockRows,setStockRows]=useState<StockRow[]>([]),[purchases,setPurchases]=useState<Purchase[]>([]);
+ const [purchaseDetail,setPurchaseDetail]=useState<PurchaseDetail|null>(null),[receiveQty,setReceiveQty]=useState<Record<string,string>>({});
  const loadVariants=useCallback(async(token:string)=>{const result=await api<ApiList<Variant>>("/variants",token);setVariants(result.data);},[]);
  const loadSales=useCallback(async(token:string)=>{const result=await api<ApiList<Sale>>("/sales",token);setSales(result.data);},[]);
  const loadCustomers=useCallback(async(token:string)=>{const result=await api<ApiList<Customer>>("/customers",token);setCustomers(result.data);},[]);
@@ -45,6 +47,21 @@ export default function App(){
   finally{setBusy(false);}
  }
  function add(v:Variant){if(v.available_stock<1)return;setCart(old=>{const found=old.find(x=>x.variant.id===v.id);if(found)return old.map(x=>x.variant.id===v.id?{...x,quantity:Math.min(x.quantity+1,v.available_stock)}:x);return [...old,{variant:v,quantity:1}];});}
+ async function openPurchase(id:string){
+  if(!session)return;setBusy(true);setError("");
+  try{const result=await api<{data:PurchaseDetail}>("/purchases/"+id,session.token);setPurchaseDetail(result.data);setReceiveQty(Object.fromEntries(result.data.items.map(x=>[x.id,String(Math.max(0,x.quantity_ordered-x.quantity_received))])));}
+  catch(e){setError(e instanceof Error?e.message:"Could not load purchase order");}
+  finally{setBusy(false);}
+ }
+ async function receivePurchase(){
+  if(!session||!purchaseDetail)return;
+  const items=purchaseDetail.items.map(x=>({purchaseItemId:x.id,quantity:Number(receiveQty[x.id]||0)})).filter(x=>x.quantity>0);
+  if(!items.length){setError("Enter at least one received quantity.");return;}
+  setBusy(true);setError("");
+  try{await api("/purchases/"+purchaseDetail.id+"/receive-partial",session.token,{items,notes:"Received from mobile app"});setPurchaseDetail(null);await Promise.all([loadPurchases(session.token),loadStock(session.token),loadVariants(session.token)]);}
+  catch(e){setError(e instanceof Error?e.message:"Could not receive purchase stock");}
+  finally{setBusy(false);}
+ }
  async function checkout(){
   if(!session||!cart.length)return;setBusy(true);setError("");
   try{
@@ -75,7 +92,7 @@ export default function App(){
  {activeTab==="sales"&&<FlatList data={sales} keyExtractor={x=>x.id} contentContainerStyle={styles.list} ListEmptyComponent={<Text style={styles.muted}>No sales recorded yet.</Text>} renderItem={({item})=><View style={styles.dataCard}><View style={{flex:1}}><Text style={styles.productName}>{item.invoice_number||"Sales invoice"}</Text><Text style={styles.muted}>{new Date(item.sale_date).toLocaleDateString("en-IN")} · {item.payment_method}</Text></View><View><Text style={styles.price}>₹{Number(item.total).toFixed(2)}</Text><Text style={styles.stock}>{item.status}</Text></View></View>}/>}
  {activeTab==="customers"&&<FlatList data={customers} keyExtractor={x=>x.id} contentContainerStyle={styles.list} ListEmptyComponent={<Text style={styles.muted}>No customers registered yet.</Text>} renderItem={({item})=><View style={styles.dataCard}><View style={{flex:1}}><Text style={styles.productName}>{item.full_name}</Text><Text style={styles.muted}>{item.phone||item.email||"No contact details"}</Text></View><View><Text style={styles.price}>{item.reward_points||0} pts</Text><Text style={styles.stock}>{item.tier||"Bronze"}</Text></View></View>}/>}
  {activeTab==="stock"&&<FlatList data={stockRows} keyExtractor={(x,i)=>x.variant_id+x.warehouse_name+i} contentContainerStyle={styles.list} ListEmptyComponent={<Text style={styles.muted}>No stock balances available.</Text>} renderItem={({item})=><View style={styles.dataCard}><View style={{flex:1}}><Text style={styles.productName}>{item.product_name} · {item.size}/{item.colour}</Text><Text style={styles.muted}>{item.sku} · {item.warehouse_name}</Text></View><View><Text style={styles.price}>{item.available} avail.</Text><Text style={styles.stock}>{item.on_hand} on hand</Text></View></View>}/>}
- {activeTab==="purchases"&&<FlatList data={purchases} keyExtractor={x=>x.id} contentContainerStyle={styles.list} ListEmptyComponent={<Text style={styles.muted}>No purchase orders recorded.</Text>} renderItem={({item})=><View style={styles.dataCard}><View style={{flex:1}}><Text style={styles.productName}>{item.purchase_number}</Text><Text style={styles.muted}>{item.supplier_name} · {new Date(item.created_at).toLocaleDateString("en-IN")}</Text></View><View><Text style={styles.price}>₹{Number(item.grand_total).toFixed(2)}</Text><Text style={styles.stock}>{item.status}</Text></View></View>}/>}
+ {activeTab==="purchases"&&(purchaseDetail?<ScrollView contentContainerStyle={styles.list}><View style={styles.dataCard}><View style={{flex:1}}><Text style={styles.productName}>Receive {purchaseDetail.purchase_number}</Text><Text style={styles.muted}>Enter quantities received in this delivery.</Text></View><Pressable onPress={()=>setPurchaseDetail(null)}><Text style={styles.logout}>Close</Text></Pressable></View>{purchaseDetail.items.map(item=>{const remaining=item.quantity_ordered-item.quantity_received;return <View key={item.id} style={styles.dataCard}><View style={{flex:1}}><Text style={styles.productName}>{item.product_name} · {item.size}/{item.colour}</Text><Text style={styles.muted}>{item.sku} · Ordered {item.quantity_ordered} · Received {item.quantity_received} · Pending {remaining}</Text></View><TextInput keyboardType="number-pad" editable={remaining>0} value={receiveQty[item.id]??"0"} onChangeText={value=>setReceiveQty(old=>({...old,[item.id]:value.replace(/[^0-9]/g,"")}))} style={[styles.input,{width:74,marginTop:0,padding:8}]}/></View>})}<Pressable onPress={receivePurchase} disabled={busy||purchaseDetail.status==="received"||purchaseDetail.status==="cancelled"} style={[styles.primary,busy&&styles.disabled]}><Text style={styles.primaryText}>{busy?"Saving...":"Confirm received quantities"}</Text></Pressable></ScrollView>:<FlatList data={purchases} keyExtractor={x=>x.id} contentContainerStyle={styles.list} ListEmptyComponent={<Text style={styles.muted}>No purchase orders recorded.</Text>} renderItem={({item})=><Pressable onPress={()=>void openPurchase(item.id)} style={styles.dataCard}><View style={{flex:1}}><Text style={styles.productName}>{item.purchase_number}</Text><Text style={styles.muted}>{item.supplier_name} · {new Date(item.created_at).toLocaleDateString("en-IN")}</Text></View><View><Text style={styles.price}>₹{Number(item.grand_total).toFixed(2)}</Text><Text style={styles.stock}>{item.status} · View / receive</Text></View></Pressable>}/>))}
  {activeTab==="returns"&&<FlatList data={returns} keyExtractor={x=>x.id} contentContainerStyle={styles.list} ListEmptyComponent={<Text style={styles.muted}>No returns recorded yet. Create returns from the web returns workspace.</Text>} renderItem={({item})=><View style={styles.dataCard}><View style={{flex:1}}><Text style={styles.productName}>{item.return_number}</Text><Text style={styles.muted}>{item.invoice_number||"Invoice"} · {item.reason}</Text><Text style={styles.stock}>{new Date(item.created_at).toLocaleDateString("en-IN")} · {item.refund_method}</Text></View><View><Text style={styles.price}>₹{Number(item.refund_total).toFixed(2)}</Text><Text style={styles.stock}>{item.status}</Text></View></View>}/>}
  </SafeAreaView>;
 }
