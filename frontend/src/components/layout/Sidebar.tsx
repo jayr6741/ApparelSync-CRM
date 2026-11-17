@@ -21,6 +21,7 @@ import {
   ShoppingCart,
   CreditCard,
   Truck,
+  RotateCcw,
   Store,
   Menu,
   X,
@@ -36,6 +37,7 @@ const navItems = [
   { label: "Customers", href: "/dashboard/customers", icon: Contact },
   { label: "Suppliers", href: "/dashboard/suppliers", icon: Store },
   { label: "Purchases", href: "/dashboard/purchases", icon: Truck },
+  { label: "Returns", href: "/dashboard/returns", icon: RotateCcw },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
