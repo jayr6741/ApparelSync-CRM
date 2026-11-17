@@ -237,7 +237,7 @@ export default function SettingsPage() {
             { id: "tax", label: "Tax & Billing", icon: Receipt, tagline: "VAT & Invoice Policy" },
             { id: "gateways", label: "Payment Gateways", icon: CreditCard, tagline: "Wallets & Custom Gateways" },
             { id: "loyalty", label: "Loyalty & Rewards", icon: Award, tagline: "Tiers, Points & Bonuses" },
-            { id: "security", label: "Security & Database", icon: ShieldCheck, tagline: "Supabase & Role Security" },
+            { id: "security", label: "Security & Database", icon: ShieldCheck, tagline: "PostgreSQL & Role Security" },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -758,10 +758,10 @@ export default function SettingsPage() {
                   <div className="space-y-1">
                     <CardTitle className="text-lg font-extrabold text-white flex items-center gap-2">
                       <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                      Security & Database Sync Status
+                      Security & Database Status
                     </CardTitle>
                     <p className="text-xs text-slate-400 mt-1">
-                      Monitor Supabase cloud sync connections, Manager PIN policies, and audit logs.
+                      Review the PostgreSQL-backed workspace architecture and access-control policies.
                     </p>
                   </div>
                 </CardHeader>
@@ -770,12 +770,12 @@ export default function SettingsPage() {
                     <div className="flex items-center gap-3.5">
                       <Database className="w-5 h-5 text-emerald-400" />
                       <div>
-                        <span className="text-sm font-bold text-white block">Supabase Real-time Cloud Sync</span>
-                        <span className="text-xs text-slate-400">Connected to kndtuchbhtyunhmybjmr.supabase.co</span>
+                        <span className="text-sm font-bold text-white block">PostgreSQL Database</span>
+                        <span className="text-xs text-slate-400">Database access is handled by the GARMENTOS backend API.</span>
                       </div>
                     </div>
                     <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                      Active
+                      API-managed
                     </Badge>
                   </div>
 
