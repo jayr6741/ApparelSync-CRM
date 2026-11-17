@@ -5,118 +5,12 @@ import { requireAuth } from "../middleware/auth";
 
 export const catalogRouter = Router();
 catalogRouter.use(requireAuth);
-
-const productSchema = z.object({
-  name: z.string().trim().min(1).max(180),
-  sku: z.string().trim().min(1).max(80),
-  categoryId: z.string().uuid().optional(),
-  description: z.string().max(4000).optional(),
-  department: z.enum(["men","women","kids","unisex"]).default("unisex"),
-  garmentType: z.string().max(80).optional(),
-  brand: z.string().max(120).optional(),
-  fabric: z.string().max(120).optional(),
-  pattern: z.string().max(120).optional(),
-  fit: z.string().max(80).optional(),
-  season: z.string().max(80).optional(),
-});
-const variantSchema = z.object({
-  size: z.string().trim().min(1).max(30),
-  colour: z.string().trim().min(1).max(60),
-  sku: z.string().trim().min(1).max(80),
-  barcode: z.string().trim().max(80).optional(),
-  mrp: z.number().nonnegative().default(0),
-  sellingPrice: z.number().nonnegative(),
-  wholesalePrice: z.number().nonnegative().optional(),
-  costPrice: z.number().nonnegative().default(0),
-  taxRate: z.number().min(0).max(100).default(0),
-});
-const variantsSchema = z.object({ variants: z.array(variantSchema).min(1).max(250) });
-
-catalogRouter.get("/categories", async (req, res, next) => {
-  try {
-    const rows = await pool.query("SELECT id,name,created_at FROM categories WHERE shop_id=$1 ORDER BY name", [req.auth!.shopId]);
-    return res.json({ data: rows.rows });
-  } catch (error) { return next(error); }
-});
-catalogRouter.post("/categories", async (req, res, next) => {
-  const parsed = z.object({ name: z.string().trim().min(1).max(100) }).safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Category name is required" });
-  try {
-    const row = await pool.query("INSERT INTO categories(shop_id,name) VALUES($1,$2) RETURNING id,name,created_at", [req.auth!.shopId, parsed.data.name]);
-    return res.status(201).json({ data: row.rows[0] });
-  } catch (error: any) {
-    if (error?.code === "23505") return res.status(409).json({ error: "Category already exists" });
-    return next(error);
-  }
-});
-catalogRouter.get("/products", async (req, res, next) => {
-  try {
-    const q = String(req.query.q ?? "").trim().slice(0,100);
-    const result = await pool.query(
-      `SELECT p.id,p.name,p.sku,p.description,p.department,p.garment_type,p.brand,p.fabric,p.pattern,p.fit,p.season,
-        c.name AS category, count(v.id)::int AS variant_count,
-        COALESCE(min(v.price),p.price) AS min_selling_price,
-        COALESCE(sum(v.stock_quantity),p.stock_quantity)::int AS stock_quantity
-       FROM products p LEFT JOIN categories c ON c.id=p.category_id AND c.shop_id=p.shop_id
-       LEFT JOIN product_variants v ON v.product_id=p.id AND v.shop_id=p.shop_id
-       WHERE p.shop_id=$1 AND ($2='' OR p.name ILIKE '%'||$2||'%' OR p.sku ILIKE '%'||$2||'%' OR coalesce(p.brand,'') ILIKE '%'||$2||'%')
-       GROUP BY p.id,c.name ORDER BY p.created_at DESC LIMIT 200`,
-      [req.auth!.shopId, q]
-    );
-    return res.json({ data: result.rows });
-  } catch (error) { return next(error); }
-});
-catalogRouter.post("/products", async (req, res, next) => {
-  const parsed = productSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Invalid product", details: parsed.error.flatten() });
-  try {
-    const p = parsed.data;
-    const result = await pool.query(
-      `INSERT INTO products(shop_id,name,sku,category_id,description,department,garment_type,brand,fabric,pattern,fit,season)
-       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-       RETURNING id,name,sku,category_id,description,department,garment_type,brand,fabric,pattern,fit,season`,
-      [req.auth!.shopId,p.name,p.sku,p.categoryId ?? null,p.description ?? null,p.department,p.garmentType ?? null,p.brand ?? null,p.fabric ?? null,p.pattern ?? null,p.fit ?? null,p.season ?? null]
-    );
-    return res.status(201).json({ data: result.rows[0] });
-  } catch (error: any) {
-    if (error?.code === "23505") return res.status(409).json({ error: "Product SKU already exists" });
-    if (error?.code === "23503") return res.status(400).json({ error: "Selected category is invalid for this shop" });
-    return next(error);
-  }
-});
-catalogRouter.get("/products/:productId/variants", async (req, res, next) => {
-  try {
-    const result = await pool.query(
-      `SELECT id,size,colour,sku,barcode,mrp,price AS selling_price,wholesale_price,cost_price,tax_rate,stock_quantity
-       FROM product_variants WHERE shop_id=$1 AND product_id=$2 ORDER BY colour,size`,
-      [req.auth!.shopId,req.params.productId]
-    );
-    return res.json({ data: result.rows });
-  } catch (error) { return next(error); }
-});
-catalogRouter.post("/products/:productId/variants", async (req, res, next) => {
-  const parsed = variantsSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Invalid variants", details: parsed.error.flatten() });
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    const product = await client.query("SELECT id FROM products WHERE id=$1 AND shop_id=$2 FOR UPDATE", [req.params.productId, req.auth!.shopId]);
-    if (!product.rowCount) { await client.query("ROLLBACK"); return res.status(404).json({ error: "Product not found" }); }
-    const created = [];
-    for (const v of parsed.data.variants) {
-      const row = await client.query(
-        `INSERT INTO product_variants(shop_id,product_id,size,color,sku,barcode,price,mrp,wholesale_price,cost_price,tax_rate)
-         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-         RETURNING id,size,color AS colour,sku,barcode,mrp,price AS selling_price,wholesale_price,cost_price,tax_rate,stock_quantity`,
-        [req.auth!.shopId,req.params.productId,v.size,v.colour,v.sku,v.barcode ?? null,v.sellingPrice,v.mrp,v.wholesalePrice ?? null,v.costPrice,v.taxRate]
-      );
-      created.push(row.rows[0]);
-    }
-    await client.query("COMMIT");
-    return res.status(201).json({ data: created });
-  } catch (error: any) {
-    await client.query("ROLLBACK");
-    if (error?.code === "23505") return res.status(409).json({ error: "Duplicate SKU, barcode or size-colour combination" });
-    return next(error);
-  } finally { client.release(); }
-});
+const productSchema=z.object({name:z.string().trim().min(1).max(180),sku:z.string().trim().min(1).max(80),categoryId:z.string().uuid().optional(),description:z.string().max(4000).optional(),department:z.enum(["men","women","kids","unisex"]).default("unisex"),garmentType:z.string().max(80).optional(),brand:z.string().max(120).optional(),fabric:z.string().max(120).optional(),pattern:z.string().max(120).optional(),fit:z.string().max(80).optional(),season:z.string().max(80).optional()});
+const variantSchema=z.object({size:z.string().trim().min(1).max(30),colour:z.string().trim().min(1).max(60),sku:z.string().trim().min(1).max(80),barcode:z.string().trim().max(80).optional(),mrp:z.number().nonnegative().default(0),sellingPrice:z.number().nonnegative(),wholesalePrice:z.number().nonnegative().optional(),costPrice:z.number().nonnegative().default(0),taxRate:z.number().min(0).max(100).default(0)});
+const variantsSchema=z.object({variants:z.array(variantSchema).min(1).max(250)});
+catalogRouter.get("/categories",async(req,res,next)=>{try{const r=await pool.query("SELECT id,name,created_at FROM categories WHERE shop_id=$1 ORDER BY name",[req.auth!.shopId]);return res.json({data:r.rows});}catch(e){return next(e);}});
+catalogRouter.post("/categories",async(req,res,next)=>{const p=z.object({name:z.string().trim().min(1).max(100)}).safeParse(req.body);if(!p.success)return res.status(400).json({error:"Category name is required"});try{const r=await pool.query("INSERT INTO categories(shop_id,name) VALUES($1,$2) RETURNING id,name,created_at",[req.auth!.shopId,p.data.name]);return res.status(201).json({data:r.rows[0]});}catch(e:any){if(e?.code==="23505")return res.status(409).json({error:"Category already exists"});return next(e);}});
+catalogRouter.get("/products",async(req,res,next)=>{try{const q=String(req.query.q??"").trim().slice(0,100);const r=await pool.query(`SELECT p.id,p.name,p.sku,p.description,p.department,p.garment_type,p.brand,p.fabric,p.pattern,p.fit,p.season,c.name AS category,count(v.id)::int AS variant_count,COALESCE(min(v.price),p.price) AS min_selling_price,COALESCE(sum(v.stock_quantity),p.stock_quantity)::int AS stock_quantity FROM products p LEFT JOIN categories c ON c.id=p.category_id AND c.shop_id=p.shop_id LEFT JOIN product_variants v ON v.product_id=p.id AND v.shop_id=p.shop_id WHERE p.shop_id=$1 AND ($2='' OR p.name ILIKE '%'||$2||'%' OR p.sku ILIKE '%'||$2||'%' OR coalesce(p.brand,'') ILIKE '%'||$2||'%') GROUP BY p.id,c.name ORDER BY p.created_at DESC LIMIT 200`,[req.auth!.shopId,q]);return res.json({data:r.rows});}catch(e){return next(e);}});
+catalogRouter.post("/products",async(req,res,next)=>{const p=productSchema.safeParse(req.body);if(!p.success)return res.status(400).json({error:"Invalid product",details:p.error.flatten()});try{const v=p.data;const r=await pool.query(`INSERT INTO products(shop_id,name,sku,category_id,description,department,garment_type,brand,fabric,pattern,fit,season) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id,name,sku,category_id,description,department,garment_type,brand,fabric,pattern,fit,season`,[req.auth!.shopId,v.name,v.sku,v.categoryId??null,v.description??null,v.department,v.garmentType??null,v.brand??null,v.fabric??null,v.pattern??null,v.fit??null,v.season??null]);return res.status(201).json({data:r.rows[0]});}catch(e:any){if(e?.code==="23505")return res.status(409).json({error:"Product SKU already exists"});if(e?.code==="23503")return res.status(400).json({error:"Selected category is invalid for this shop"});return next(e);}});
+catalogRouter.get("/products/:productId/variants",async(req,res,next)=>{try{const r=await pool.query("SELECT id,size,colour,sku,barcode,mrp,price AS selling_price,wholesale_price,cost_price,tax_rate,stock_quantity FROM product_variants WHERE shop_id=$1 AND product_id=$2 ORDER BY colour,size",[req.auth!.shopId,req.params.productId]);return res.json({data:r.rows});}catch(e){return next(e);}});
+catalogRouter.post("/products/:productId/variants",async(req,res,next)=>{const p=variantsSchema.safeParse(req.body);if(!p.success)return res.status(400).json({error:"Invalid variants",details:p.error.flatten()});const c=await pool.connect();try{await c.query("BEGIN");const product=await c.query("SELECT id FROM products WHERE id=$1 AND shop_id=$2 FOR UPDATE",[req.params.productId,req.auth!.shopId]);if(!product.rowCount){await c.query("ROLLBACK");return res.status(404).json({error:"Product not found"});}const created=[];for(const v of p.data.variants){const r=await c.query(`INSERT INTO product_variants(shop_id,product_id,size,color,colour,sku,barcode,price,mrp,wholesale_price,cost_price,tax_rate) VALUES($1,$2,$3,$4,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id,size,colour,sku,barcode,mrp,price AS selling_price,wholesale_price,cost_price,tax_rate,stock_quantity`,[req.auth!.shopId,req.params.productId,v.size,v.colour,v.sku,v.barcode??null,v.sellingPrice,v.mrp,v.wholesalePrice??null,v.costPrice,v.taxRate]);created.push(r.rows[0]);}await c.query("COMMIT");return res.status(201).json({data:created});}catch(e:any){await c.query("ROLLBACK");if(e?.code==="23505")return res.status(409).json({error:"Duplicate SKU, barcode or size-colour combination"});return next(e);}finally{c.release();}});
