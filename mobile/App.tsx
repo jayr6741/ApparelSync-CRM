@@ -49,7 +49,7 @@ export default function App(){
   if(!session||!cart.length)return;setBusy(true);setError("");
   try{
    const result=await api<{data:{invoice_number:string;total:number|string}}>("/sales/checkout",session.token,{idempotencyKey:`mobile-${Date.now()}-${Math.random().toString(36).slice(2)}`,items:cart.map(x=>({variantId:x.variant.id,quantity:x.quantity})),payments:[{method:"cash",amount:Number(total.toFixed(2))}]});
-   setLastInvoice(`${result.data.invoice_number} · ₹${Number(result.data.total).toFixed(2)}`);setCart([]);await Promise.all([loadVariants(session.token),loadSales(session.token),loadCustomers(session.token)]);
+   setLastInvoice(`${result.data.invoice_number} · ₹${Number(result.data.total).toFixed(2)}`);setCart([]);await Promise.all([loadVariants(session.token),loadSales(session.token),loadCustomers(session.token),loadStock(session.token)]);
   }catch(e){setError(e instanceof Error?e.message:"Checkout failed");}
   finally{setBusy(false);}
  }
