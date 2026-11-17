@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import { pool } from "../db/pool";
 import { env } from "../config/env";
 
-type TokenPayload = { sub: string; shopId: string; role: string };
+type TokenPayload = { sub: string; shopId: string; role: string; iss?: string; aud?: string };
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const header = req.header("authorization");
@@ -11,7 +11,11 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   if (!token) return res.status(401).json({ error: "Authentication required" });
 
   try {
-    const payload = jwt.verify(token, env.authSecret) as TokenPayload;
+    const payload = jwt.verify(token, env.authSecret, {
+      issuer: "garmentos-api",
+      audience: "garmentos-app",
+    }) as TokenPayload;
+    if (!payload.sub || !payload.shopId) return res.status(401).json({ error: "Invalid session token" });
     const membership = await pool.query(
       "SELECT role FROM shop_members WHERE shop_id = $1 AND user_id = $2",
       [payload.shopId, payload.sub]
