@@ -3,6 +3,7 @@
 import { useCallback,useEffect,useMemo,useState } from "react";
 import { Search,ShoppingCart,Trash2,Receipt,CheckCircle2,Plus,Wallet,Printer,ScanBarcode } from "lucide-react";
 import ScannerCamera from "@/components/scanner/ScannerCamera";
+import CustomerPicker from "@/components/customers/CustomerPicker";
 import { apiRequest } from "@/lib/api";
 import { readSession } from "@/lib/auth";
 
@@ -23,6 +24,8 @@ export default function PosPage(){
  const [checkout,setCheckout]=useState(false);
  const [error,setError]=useState("");
  const [receipt,setReceipt]=useState<SaleResult["data"]|null>(null);
+ const [customerId,setCustomerId]=useState<string|null>(null);
+ const [customerName,setCustomerName]=useState("");
  const [scannerVisible,setScannerVisible]=useState(false);
  const [scannerActive,setScannerActive]=useState(false);
  const [tenders,setTenders]=useState<Tender[]>([emptyTender()]);
@@ -46,8 +49,8 @@ export default function PosPage(){
   if(Math.abs(normalized.reduce((n,t)=>n+t.amount,0)-total)>0.01){setError("Payment amounts ka total bill total ke barabar hona chahiye.");return;}
   setCheckout(true);setError("");
   try{
-   const r=await apiRequest<SaleResult>("/sales/checkout",{method:"POST",body:JSON.stringify({idempotencyKey:crypto.randomUUID(),items:cart.map(x=>({variantId:x.variant.id,quantity:x.quantity})),payments:normalized.map(t=>({method:t.method,amount:t.amount,referenceNumber:t.referenceNumber.trim()||undefined}))})},s.token);
-   setReceipt(r.data);setCart([]);setTenders([emptyTender()]);await load();
+   const r=await apiRequest<SaleResult>("/sales/checkout",{method:"POST",body:JSON.stringify({idempotencyKey:crypto.randomUUID(),customerId:customerId||undefined,items:cart.map(x=>({variantId:x.variant.id,quantity:x.quantity})),payments:normalized.map(t=>({method:t.method,amount:t.amount,referenceNumber:t.referenceNumber.trim()||undefined}))})},s.token);
+   setReceipt(r.data);setCart([]);setTenders([emptyTender()]);setCustomerId(null);setCustomerName("");await load();
   }catch(e){setError(e instanceof Error?e.message:"Checkout failed");}finally{setCheckout(false);}
  }
  function printReceipt(){if(!receipt)return;const w=window.open("","_blank","width=420,height=650");if(!w){setError("Receipt print window blocked. Browser pop-ups allow karein.");return;}w.document.write(`<!doctype html><html><head><title>${receipt.invoice_number}</title><style>body{font:14px Arial;padding:24px;color:#111}h1{font-size:20px}hr{border:0;border-top:1px dashed #777;margin:18px 0}.total{font-size:20px;font-weight:bold}</style></head><body><h1>GARMENTOS</h1><p>Sales receipt</p><hr><p>Invoice: ${receipt.invoice_number}</p><p>Status: ${receipt.status}</p><hr><p class="total">Total: ₹${Number(receipt.total).toFixed(2)}</p><hr><p>Thank you for shopping!</p><script>window.onload=()=>window.print()<\/script></body></html>`);w.document.close();}
@@ -60,7 +63,7 @@ export default function PosPage(){
    <div className="space-y-4"><div className="relative"><Search className="absolute left-3 top-3.5 text-slate-500" size={17}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search product, SKU, barcode, size or colour..." className="w-full rounded-xl border border-slate-800 bg-[#111520] py-3 pl-10 pr-4 text-sm text-white"/></div>
     <div className="grid gap-3 sm:grid-cols-2">{loading?<p className="text-sm text-slate-400">Loading products...</p>:shown.map(v=><button key={v.id} disabled={v.available_stock<=0} onClick={()=>add(v)} className="rounded-xl border border-slate-800 bg-[#111520] p-4 text-left transition hover:border-emerald-500/60 disabled:opacity-40"><p className="font-semibold text-white">{v.product_name}</p><p className="mt-1 text-xs text-slate-400">{v.size} / {v.colour} · {v.sku}</p><div className="mt-3 flex items-center justify-between"><span className="font-bold text-emerald-300">₹{Number(v.selling_price).toFixed(2)}</span><span className="text-xs text-slate-500">Stock: {v.available_stock}</span></div></button>)}</div>
    </div>
-   <aside className="rounded-2xl border border-slate-800 bg-[#111520] p-5"><h2 className="flex items-center gap-2 text-lg font-semibold text-white"><ShoppingCart size={19}/> Current sale</h2>
+   <aside className="rounded-2xl border border-slate-800 bg-[#111520] p-5"><h2 className="flex items-center gap-2 text-lg font-semibold text-white"><ShoppingCart size={19}/> Current sale</h2><div className="mt-4"><label className="mb-2 block text-xs font-semibold text-slate-400">Customer (optional)</label><CustomerPicker value={customerName} onChange={name=>{setCustomerName(name);setCustomerId(null);}} onSelect={(id,name)=>{setCustomerId(id);setCustomerName(name);}} onClear={()=>setCustomerId(null)} inputClassName="w-full rounded-lg border border-slate-700 bg-[#0a0d14] p-3 text-sm text-white"/></div>
     {cart.length===0?<p className="py-10 text-center text-sm text-slate-500">Select a size-colour variant to add it to the bill.</p>:<div className="mt-4 space-y-3">{cart.map(l=><div key={l.variant.id} className="border-b border-slate-800 pb-3"><div className="flex justify-between gap-2"><div><p className="text-sm font-medium text-white">{l.variant.product_name}</p><p className="text-xs text-slate-500">{l.variant.size} / {l.variant.colour}</p></div><button onClick={()=>setCart(old=>old.filter(x=>x.variant.id!==l.variant.id))} aria-label="Remove item" className="text-rose-400"><Trash2 size={16}/></button></div><div className="mt-2 flex items-center justify-between"><div className="flex items-center gap-2"><button onClick={()=>change(l.variant.id,l.quantity-1)} className="rounded border border-slate-700 px-2 text-white">−</button><span className="w-5 text-center text-sm text-white">{l.quantity}</span><button onClick={()=>change(l.variant.id,l.quantity+1)} disabled={l.quantity>=l.variant.available_stock} className="rounded border border-slate-700 px-2 text-white disabled:opacity-40">+</button></div><span className="text-sm text-slate-200">₹{(Number(l.variant.selling_price)*l.quantity).toFixed(2)}</span></div></div>)}</div>}
     <div className="mt-5 space-y-2 border-t border-slate-800 pt-4 text-sm"><div className="flex justify-between text-slate-400"><span>Subtotal</span><span>₹{subtotal.toFixed(2)}</span></div><div className="flex justify-between text-slate-400"><span>GST (variant rates)</span><span>₹{tax.toFixed(2)}</span></div><div className="flex justify-between text-lg font-bold text-white"><span>Total</span><span>₹{total.toFixed(2)}</span></div></div>
     <div className="mt-5 space-y-3 border-t border-slate-800 pt-4"><div className="flex items-center justify-between"><h3 className="flex items-center gap-2 font-semibold text-white"><Wallet size={17}/> Payment collection</h3><button onClick={addTender} disabled={tenders.length>=10||!cart.length} className="flex items-center gap-1 text-xs font-semibold text-emerald-300 disabled:opacity-40"><Plus size={15}/>Add method</button></div>
